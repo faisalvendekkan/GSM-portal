@@ -21,6 +21,9 @@ const env = {
   aiProvider: process.env.AI_PROVIDER || "gemini",
   geminiApiKey: process.env.GEMINI_API_KEY || "",
   geminiModel: process.env.GEMINI_MODEL || "gemini-2.5-flash",
+  defaultAdminEmail: (process.env.DEFAULT_ADMIN_EMAIL || "admin@gsmportal.local").trim().toLowerCase(),
+  defaultAdminPassword: process.env.DEFAULT_ADMIN_PASSWORD || "Admin@12345!",
+  resetDefaultAdmin: String(process.env.RESET_DEFAULT_ADMIN || "false").toLowerCase() === "true",
   sqliteDbPath: path.isAbsolute(process.env.SQLITE_DB_PATH || "")
     ? process.env.SQLITE_DB_PATH
     : fromRoot(process.env.SQLITE_DB_PATH || "server/data/app.sqlite")

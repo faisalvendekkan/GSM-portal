@@ -1,8 +1,9 @@
-const { initializeDatabase, saveDatabase } = require("../config/database");
+const { areTablesReady, initializeDatabase, saveDatabase } = require("../config/database");
 const seedDb = require("./seedDb");
 
 async function initDb() {
   await initializeDatabase();
+  console.log(`Tables ready: ${await areTablesReady()}`);
   await seedDb();
   saveDatabase();
   console.log("SQLite database ready.");

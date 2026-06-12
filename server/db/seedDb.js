@@ -1,4 +1,5 @@
 const bcrypt = require("bcrypt");
+const env = require("../config/env");
 const { query } = require("../config/database");
 
 const categories = [
@@ -16,6 +17,48 @@ const categories = [
   ["Safety Guidelines", "safety-guidelines", "Battery, ESD, heat, fumes, and data safety practices."]
 ];
 
+async function ensureDefaultAdmin() {
+  const defaultEmail = env.defaultAdminEmail || "admin@gsmportal.local";
+  const defaultPassword = env.defaultAdminPassword || "Admin@12345!";
+
+  if (env.resetDefaultAdmin) {
+    const matchingAdmins = await query("SELECT id FROM users WHERE lower(email) = ? LIMIT 1", [defaultEmail]);
+    if (matchingAdmins.length) {
+      const passwordHash = await bcrypt.hash(defaultPassword, 12);
+      await query(
+        `UPDATE users
+         SET password_hash = ?, role = 'admin', status = 'active', updated_at = datetime('now')
+         WHERE id = ?`,
+        [passwordHash, matchingAdmins[0].id]
+      );
+      console.log("Default admin password reset successfully");
+      return;
+    }
+  }
+
+  const admins = await query("SELECT id FROM users WHERE role = 'admin' LIMIT 1");
+  if (!admins.length) {
+    const passwordHash = await bcrypt.hash(defaultPassword, 12);
+    await query(
+      `INSERT INTO users (name, full_name, email, password_hash, role, status)
+       VALUES (?, ?, ?, ?, 'admin', 'active')`,
+      ["Portal Admin", "Portal Admin", defaultEmail, passwordHash]
+    );
+    console.log(`Default admin created: ${defaultEmail}`);
+  } else {
+    console.log("Default admin already exists.");
+  }
+}
+
+async function isDefaultAdminReady() {
+  const defaultEmail = env.defaultAdminEmail || "admin@gsmportal.local";
+  const rows = await query(
+    "SELECT id FROM users WHERE lower(email) = ? AND role = 'admin' AND status = 'active' LIMIT 1",
+    [defaultEmail]
+  );
+  return rows.length > 0;
+}
+
 async function seedDb() {
   const categoryCount = await query("SELECT COUNT(*) AS total FROM categories");
   if (!categoryCount[0]?.total) {
@@ -31,18 +74,7 @@ async function seedDb() {
     console.log("Default categories already exist.");
   }
 
-  const admins = await query("SELECT id FROM users WHERE role = 'admin' LIMIT 1");
-  if (!admins.length) {
-    const passwordHash = await bcrypt.hash("Admin@12345!", 12);
-    await query(
-      `INSERT INTO users (name, full_name, email, password_hash, role, status)
-       VALUES (?, ?, ?, ?, 'admin', 'active')`,
-      ["Portal Admin", "Portal Admin", "admin@gsmportal.local", passwordHash]
-    );
-    console.log("Default admin created: admin@gsmportal.local / Admin@12345!");
-  } else {
-    console.log("Default admin already exists.");
-  }
+  await ensureDefaultAdmin();
 
   const charging = (await query("SELECT id FROM categories WHERE slug = ? LIMIT 1", ["charging-section"]))[0];
   const battery = (await query("SELECT id FROM categories WHERE slug = ? LIMIT 1", ["battery-issues"]))[0];
@@ -92,3 +124,5 @@ if (require.main === module) {
 }
 
 module.exports = seedDb;
+module.exports.ensureDefaultAdmin = ensureDefaultAdmin;
+module.exports.isDefaultAdminReady = isDefaultAdminReady;

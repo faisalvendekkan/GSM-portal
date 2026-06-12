@@ -100,15 +100,17 @@ async function login(req, res, next) {
 
 async function adminLogin(req, res, next) {
   try {
-    const { email, password } = req.body;
+    const email = String(req.body.email || "").trim().toLowerCase();
+    const password = String(req.body.password || "");
     const user = await userModel.findByEmail(email);
-    if (!user || user.role !== "admin") return res.status(401).json({ message: "Invalid admin credentials." });
-    if (user.status && user.status !== "active") {
-      return res.status(403).json({ message: "This admin account is not active." });
+    if (!user) return res.status(401).json({ message: "Invalid admin credentials" });
+    if (user.role !== "admin") return res.status(401).json({ message: "Invalid admin credentials" });
+    if (user.status !== "active") {
+      return res.status(403).json({ message: "Admin account is inactive" });
     }
 
     const valid = await bcrypt.compare(password, user.password_hash);
-    if (!valid) return res.status(401).json({ message: "Invalid admin credentials." });
+    if (!valid) return res.status(401).json({ message: "Invalid admin credentials" });
 
     await userModel.markLastLogin(user.id);
     return respondWithTokens(res, user);

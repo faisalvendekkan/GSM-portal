@@ -6,6 +6,7 @@ const path = require("path");
 const env = require("./config/env");
 const { areTablesReady } = require("./config/database");
 const initDb = require("./db/initDb");
+const { isDefaultAdminReady } = require("./db/seedDb");
 const categoryModel = require("./models/categoryModel");
 const authRoutes = require("./routes/authRoutes");
 const dashboardRoutes = require("./routes/dashboardRoutes");
@@ -34,6 +35,7 @@ app.get("/api/health", async (req, res, next) => {
       ok: true,
       database: "sqlite",
       tablesReady,
+      adminReady: await isDefaultAdminReady(),
       status: "running"
     });
   } catch (error) {
