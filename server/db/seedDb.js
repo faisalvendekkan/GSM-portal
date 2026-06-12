@@ -17,27 +17,24 @@ const categories = [
   ["Safety Guidelines", "safety-guidelines", "Battery, ESD, heat, fumes, and data safety practices."]
 ];
 
-async function ensureDefaultAdmin() {
+async function ensureDefaultAdmin({ forceReset = false } = {}) {
   const defaultEmail = env.defaultAdminEmail || "admin@gsmportal.local";
   const defaultPassword = env.defaultAdminPassword || "Admin@12345!";
+  const matchingAdmins = await query("SELECT id FROM users WHERE lower(email) = ? LIMIT 1", [defaultEmail]);
 
-  if (env.resetDefaultAdmin) {
-    const matchingAdmins = await query("SELECT id FROM users WHERE lower(email) = ? LIMIT 1", [defaultEmail]);
-    if (matchingAdmins.length) {
-      const passwordHash = await bcrypt.hash(defaultPassword, 12);
-      await query(
-        `UPDATE users
-         SET password_hash = ?, role = 'admin', status = 'active', updated_at = datetime('now')
-         WHERE id = ?`,
-        [passwordHash, matchingAdmins[0].id]
-      );
-      console.log("Default admin password reset successfully");
-      return;
-    }
+  if (matchingAdmins.length && (forceReset || env.resetDefaultAdmin)) {
+    const passwordHash = await bcrypt.hash(defaultPassword, 12);
+    await query(
+      `UPDATE users
+       SET password_hash = ?, role = 'admin', status = 'active', updated_at = datetime('now')
+       WHERE id = ?`,
+      [passwordHash, matchingAdmins[0].id]
+    );
+    console.log("Default admin password reset successfully");
+    return;
   }
 
-  const admins = await query("SELECT id FROM users WHERE role = 'admin' LIMIT 1");
-  if (!admins.length) {
+  if (!matchingAdmins.length) {
     const passwordHash = await bcrypt.hash(defaultPassword, 12);
     await query(
       `INSERT INTO users (name, full_name, email, password_hash, role, status)
@@ -51,11 +48,7 @@ async function ensureDefaultAdmin() {
 }
 
 async function isDefaultAdminReady() {
-  const defaultEmail = env.defaultAdminEmail || "admin@gsmportal.local";
-  const rows = await query(
-    "SELECT id FROM users WHERE lower(email) = ? AND role = 'admin' AND status = 'active' LIMIT 1",
-    [defaultEmail]
-  );
+  const rows = await query("SELECT id FROM users WHERE role = 'admin' AND status = 'active' LIMIT 1");
   return rows.length > 0;
 }
 

@@ -8,7 +8,8 @@
     "build": "cd client && npm install --include=dev && npm run build",
     "start": "node server/app.js",
     "dev": "node server/app.js",
-    "init-db": "node server/db/initDb.js"
+    "init-db": "node server/db/initDb.js",
+    "reset-admin": "node server/scripts/resetAdmin.js"
   },
   "dependencies": {
     "bcrypt": "^6.0.0",
