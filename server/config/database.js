@@ -3,6 +3,17 @@ const path = require("path");
 const initSqlJs = require("sql.js");
 const env = require("./env");
 
+const REQUIRED_TABLES = [
+  "users",
+  "categories",
+  "notes",
+  "saved_links",
+  "articles",
+  "ai_chats",
+  "refresh_tokens",
+  "audit_logs"
+];
+
 let SQL = null;
 let db = null;
 let initialized = false;
@@ -12,7 +23,7 @@ function ensureDataDir() {
   fs.mkdirSync(path.dirname(env.sqliteDbPath), { recursive: true });
 }
 
-function persist() {
+function saveDatabase() {
   if (!db) return;
   ensureDataDir();
   const data = db.export();
@@ -24,6 +35,7 @@ async function initializeDatabase() {
   if (initPromise) return initPromise;
 
   initPromise = (async () => {
+    console.log(`SQLite database path: ${env.sqliteDbPath}`);
     ensureDataDir();
     SQL = await initSqlJs({
       locateFile(file) {
@@ -36,11 +48,12 @@ async function initializeDatabase() {
       db = new SQL.Database(fileBuffer);
     } else {
       db = new SQL.Database();
-      persist();
+      saveDatabase();
     }
 
     db.run("PRAGMA foreign_keys = ON");
     initialized = true;
+    ensureSchema();
     return db;
   })();
 
@@ -64,6 +77,48 @@ async function getDb() {
   }
 
   return db;
+}
+
+function tableExists(tableName) {
+  if (!db) return false;
+  const stmt = db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = ? LIMIT 1");
+  try {
+    stmt.bind([tableName]);
+    return stmt.step();
+  } finally {
+    stmt.free();
+  }
+}
+
+function missingRequiredTables() {
+  return REQUIRED_TABLES.filter((tableName) => !tableExists(tableName));
+}
+
+function ensureSchema() {
+  if (!db) {
+    throw new Error("SQLite database must be opened before ensuring schema.");
+  }
+
+  const missingTables = missingRequiredTables();
+  const schema = require("../db/schema");
+  db.exec(schema);
+  saveDatabase();
+
+  if (missingTables.length) {
+    console.log(`SQLite schema created or repaired. Missing tables were: ${missingTables.join(", ")}`);
+  } else {
+    console.log("SQLite schema already exists.");
+  }
+
+  const remainingMissingTables = missingRequiredTables();
+  if (remainingMissingTables.length) {
+    throw new Error(`SQLite schema initialization failed. Missing tables: ${remainingMissingTables.join(", ")}`);
+  }
+}
+
+async function areTablesReady() {
+  await initializeDatabase();
+  return missingRequiredTables().length === 0;
 }
 
 async function resetDatabaseForTests() {
@@ -99,7 +154,7 @@ async function query(sql, params = []) {
     stmt.free();
     const insertId = database.exec("SELECT last_insert_rowid() AS insertId")[0]?.values?.[0]?.[0] || 0;
     const changes = database.exec("SELECT changes() AS changes")[0]?.values?.[0]?.[0] || 0;
-    persist();
+    saveDatabase();
     return { insertId: Number(insertId), changes: Number(changes) };
   } finally {
     try {
@@ -113,7 +168,7 @@ async function query(sql, params = []) {
 async function exec(sql) {
   const database = await getDb();
   database.exec(sql);
-  persist();
+  saveDatabase();
 }
 
 async function transaction(callback) {
@@ -122,7 +177,7 @@ async function transaction(callback) {
   try {
     const result = await callback(database);
     database.run("COMMIT");
-    persist();
+    saveDatabase();
     return result;
   } catch (error) {
     database.run("ROLLBACK");
@@ -132,9 +187,12 @@ async function transaction(callback) {
 
 module.exports = {
   initializeDatabase,
+  ensureSchema,
+  saveDatabase,
+  areTablesReady,
   query,
   exec,
   transaction,
-  persist,
+  persist: saveDatabase,
   resetDatabaseForTests
 };

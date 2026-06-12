@@ -17,16 +17,18 @@ const categories = [
 ];
 
 async function seedDb() {
-  for (const [name, slug, description] of categories) {
-    await query(
-      `INSERT INTO categories (name, slug, description)
-       VALUES (?, ?, ?)
-       ON CONFLICT(slug) DO UPDATE SET
-         name = excluded.name,
-         description = excluded.description,
-         updated_at = datetime('now')`,
-      [name, slug, description]
-    );
+  const categoryCount = await query("SELECT COUNT(*) AS total FROM categories");
+  if (!categoryCount[0]?.total) {
+    for (const [name, slug, description] of categories) {
+      await query(
+        `INSERT INTO categories (name, slug, description)
+         VALUES (?, ?, ?)`,
+        [name, slug, description]
+      );
+    }
+    console.log("Default categories seeded.");
+  } else {
+    console.log("Default categories already exist.");
   }
 
   const admins = await query("SELECT id FROM users WHERE role = 'admin' LIMIT 1");
@@ -38,6 +40,8 @@ async function seedDb() {
       ["Portal Admin", "Portal Admin", "admin@gsmportal.local", passwordHash]
     );
     console.log("Default admin created: admin@gsmportal.local / Admin@12345!");
+  } else {
+    console.log("Default admin already exists.");
   }
 
   const charging = (await query("SELECT id FROM categories WHERE slug = ? LIMIT 1", ["charging-section"]))[0];

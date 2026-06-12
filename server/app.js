@@ -4,6 +4,7 @@ const fs = require("fs");
 const path = require("path");
 
 const env = require("./config/env");
+const { areTablesReady } = require("./config/database");
 const initDb = require("./db/initDb");
 const categoryModel = require("./models/categoryModel");
 const authRoutes = require("./routes/authRoutes");
@@ -26,12 +27,18 @@ app.use(cookieParser());
 app.use(sanitizeRequest);
 app.use("/api", apiLimiter);
 
-app.get("/api/health", (req, res) => {
-  res.json({
-    ok: true,
-    database: "sqlite",
-    status: "running"
-  });
+app.get("/api/health", async (req, res, next) => {
+  try {
+    const tablesReady = await areTablesReady();
+    res.json({
+      ok: true,
+      database: "sqlite",
+      tablesReady,
+      status: "running"
+    });
+  } catch (error) {
+    next(error);
+  }
 });
 
 app.use("/api/auth", authRoutes);

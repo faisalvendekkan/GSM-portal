@@ -1,11 +1,11 @@
-const { exec, initializeDatabase } = require("../config/database");
-const schema = require("./schema");
+const { initializeDatabase, saveDatabase } = require("../config/database");
 const seedDb = require("./seedDb");
 
 async function initDb() {
   await initializeDatabase();
-  await exec(schema);
   await seedDb();
+  saveDatabase();
+  console.log("SQLite database ready.");
 }
 
 if (require.main === module) {
