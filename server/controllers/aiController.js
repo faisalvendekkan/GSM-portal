@@ -1,4 +1,5 @@
 const chatModel = require("../models/chatModel");
+const env = require("../config/env");
 
 const blockedPatterns = [
   /frp\s*bypass/i,
@@ -28,47 +29,14 @@ function systemPrompt() {
 }
 
 function fallbackAnswer(question) {
-  return [
-    "AI provider is not configured yet, but here is a safe repair workflow:",
-    "1. Confirm the exact model and fault symptom.",
-    "2. Check for liquid damage, bent pins, damaged flex cables, and visible board burns.",
-    "3. Test with a known-good charger, cable, battery, and display where relevant.",
-    "4. Measure voltage rails before replacing ICs.",
-    "5. Disconnect the battery before opening or soldering.",
-    `Question noted: ${question}`
-  ].join("\n");
-}
-
-async function askOpenAI(question) {
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) return null;
-
-  const response = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
-      model: process.env.OPENAI_MODEL || "gpt-4o-mini",
-      messages: [
-        { role: "system", content: systemPrompt() },
-        { role: "user", content: question }
-      ],
-      temperature: 0.35
-    })
-  });
-
-  if (!response.ok) throw new Error("OpenAI request failed.");
-  const data = await response.json();
-  return data.choices?.[0]?.message?.content || null;
+  return "AI service is not configured yet. Please add GEMINI_API_KEY in environment variables.";
 }
 
 async function askGemini(question) {
-  const apiKey = process.env.GEMINI_API_KEY;
+  const apiKey = env.geminiApiKey;
   if (!apiKey) return null;
 
-  const model = process.env.GEMINI_MODEL || "gemini-2.5-flash";
+  const model = env.geminiModel;
   const response = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
     {
@@ -101,18 +69,16 @@ async function chat(req, res, next) {
 
     if (blockedPatterns.some((pattern) => pattern.test(question))) {
       answer = blockedAnswer();
-    } else if ((process.env.AI_PROVIDER || "openai").toLowerCase() === "gemini") {
-      answer = (await askGemini(question)) || fallbackAnswer(question);
     } else {
-      answer = (await askOpenAI(question)) || fallbackAnswer(question);
+      answer = (await askGemini(question)) || fallbackAnswer(question);
     }
 
-    const saved = await chatModel.createChat(req.user.id, { question, answer });
+    const saved = await chatModel.createChat(req.user.id, { question, answer, provider: "gemini" });
     res.json({ chat: saved });
   } catch (error) {
     try {
       const answer = fallbackAnswer(req.body.question);
-      const saved = await chatModel.createChat(req.user.id, { question: req.body.question, answer });
+      const saved = await chatModel.createChat(req.user.id, { question: req.body.question, answer, provider: "gemini" });
       res.json({ chat: saved, warning: "Live AI request failed, so a safe fallback answer was saved." });
     } catch (fallbackError) {
       next(fallbackError);

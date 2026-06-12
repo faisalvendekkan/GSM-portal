@@ -2,9 +2,10 @@ const cors = require("cors");
 const helmet = require("helmet");
 const rateLimit = require("express-rate-limit");
 const { validationResult } = require("express-validator");
+const env = require("../config/env");
 
 function allowedOrigins() {
-  const origins = [process.env.CLIENT_URL, process.env.APP_URL, "http://localhost:5173", "http://localhost:3000"]
+  const origins = [env.clientUrl, env.appUrl, "http://localhost:5173", "http://localhost:3000"]
     .filter(Boolean)
     .flatMap((value) => value.split(","))
     .map((value) => value.trim());
@@ -16,7 +17,7 @@ function configureSecurity(app) {
   app.use(
     helmet({
       contentSecurityPolicy:
-        process.env.NODE_ENV === "production"
+        env.nodeEnv === "production"
           ? {
               directives: {
                 ...helmet.contentSecurityPolicy.getDefaultDirectives(),
@@ -37,7 +38,7 @@ function configureSecurity(app) {
     cors({
       origin(origin, callback) {
         if (!origin || allowedOrigins().includes(origin)) return callback(null, true);
-        return callback(new Error("CORS origin not allowed"));
+        return callback(null, false);
       },
       credentials: true
     })

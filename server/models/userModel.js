@@ -64,7 +64,7 @@ async function updateProfile(id, { name, phone, bio }) {
 }
 
 async function markLastLogin(id) {
-  await query("UPDATE users SET last_login_at = UTC_TIMESTAMP() WHERE id = ?", [id]);
+  await query("UPDATE users SET last_login_at = datetime('now') WHERE id = ?", [id]);
 }
 
 async function listUsers({ search = "", filter = "all", page = 1, limit = 10 } = {}) {

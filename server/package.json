@@ -6,8 +6,9 @@
   "scripts": {
     "start": "node app.js",
     "dev": "nodemon app.js",
-    "migrate": "node sql/runSql.js schema",
-    "seed": "node sql/runSql.js seed"
+    "migrate": "node db/initDb.js",
+    "seed": "node db/seedDb.js",
+    "init-db": "node db/initDb.js"
   },
   "dependencies": {
     "bcrypt": "^6.0.0",
@@ -19,7 +20,7 @@
     "express-validator": "^7.2.0",
     "helmet": "^8.0.0",
     "jsonwebtoken": "^9.0.2",
-    "mysql2": "^3.11.5"
+    "sql.js": "^1.12.0"
   },
   "devDependencies": {
     "nodemon": "^3.1.7"

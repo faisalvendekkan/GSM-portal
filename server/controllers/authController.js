@@ -1,13 +1,14 @@
 const bcrypt = require("bcrypt");
 const crypto = require("crypto");
 const jwt = require("jsonwebtoken");
+const env = require("../config/env");
 const userModel = require("../models/userModel");
 const refreshTokenModel = require("../models/refreshTokenModel");
 
-const accessSecret = process.env.JWT_ACCESS_SECRET || "dev_access_secret_change_me";
-const refreshSecret = process.env.JWT_REFRESH_SECRET || "dev_refresh_secret_change_me";
-const accessExpires = process.env.ACCESS_TOKEN_EXPIRES || "15m";
-const refreshExpires = process.env.REFRESH_TOKEN_EXPIRES || "7d";
+const accessSecret = env.accessSecret;
+const refreshSecret = env.refreshSecret;
+const accessExpires = env.accessTokenExpires;
+const refreshExpires = env.refreshTokenExpires;
 const cookieName = "mobile_repair_refresh";
 
 function durationToMs(value) {
@@ -19,12 +20,12 @@ function durationToMs(value) {
   return amount * factors[unit];
 }
 
-function mysqlDate(date) {
-  return date.toISOString().slice(0, 19).replace("T", " ");
-}
-
 function hashToken(token) {
   return crypto.createHash("sha256").update(token).digest("hex");
+}
+
+function sqliteDate(date) {
+  return date.toISOString().slice(0, 19).replace("T", " ");
 }
 
 function signAccessToken(user) {
@@ -37,7 +38,7 @@ function signAccessToken(user) {
 
 async function issueRefreshToken(user) {
   const token = jwt.sign({ id: user.id, email: user.email, role: user.role }, refreshSecret, { expiresIn: refreshExpires });
-  const expiresAt = mysqlDate(new Date(Date.now() + durationToMs(refreshExpires)));
+  const expiresAt = sqliteDate(new Date(Date.now() + durationToMs(refreshExpires)));
   await refreshTokenModel.storeRefreshToken({
     userId: user.id,
     tokenHash: hashToken(token),
@@ -49,7 +50,7 @@ async function issueRefreshToken(user) {
 function setRefreshCookie(res, token) {
   res.cookie(cookieName, token, {
     httpOnly: true,
-    secure: String(process.env.COOKIE_SECURE || "false") === "true",
+    secure: env.cookieSecure,
     sameSite: "lax",
     maxAge: durationToMs(refreshExpires),
     path: "/api/auth"
@@ -71,6 +72,7 @@ async function register(req, res, next) {
 
     const passwordHash = await bcrypt.hash(password, 12);
     const user = await userModel.createUser({ name, email, passwordHash, role: "student" });
+    await userModel.markLastLogin(user.id);
     return respondWithTokens(res, user);
   } catch (error) {
     return next(error);

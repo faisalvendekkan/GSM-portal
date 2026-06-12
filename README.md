@@ -1,213 +1,358 @@
 # Mobile Repair AI Student Portal
 
-A Hostinger-ready full-stack web application for mobile repair students. The frontend is React + Vite + Tailwind CSS, and the backend is Node.js + Express + Hostinger MySQL/MariaDB.
+Production-ready single Node.js application for the Mobile Repair AI Student Portal.
 
-## Project Structure
+The React frontend, Express API, authentication, admin panel, notes, saved links, articles, AI assistant, and SQLite database run from one deployable app.
 
-```text
-/client  React Vite app
-/server  Express API and production static server
-/server/sql/schema.sql
-/server/sql/seed.sql
-```
+## Stack
 
-## Local Development
+- Frontend: React + Vite
+- Styling: existing Tailwind UI
+- Backend: Node.js + Express
+- Database: SQLite file at `server/data/app.sqlite`
+- SQLite package: `sql.js`
+- Auth: JWT access token + HttpOnly refresh token cookie
+- Passwords: bcrypt hashes
+- Security: Helmet, CORS, rate limiting, express-validator
+- AI: Gemini with `GEMINI_API_KEY`
 
-1. Install backend dependencies:
+No external database is required.
 
-   ```bash
-   cd server
-   npm install
-   ```
+## Default Admin
 
-2. Install frontend dependencies:
-
-   ```bash
-   cd ../client
-   npm install
-   ```
-
-3. Copy `/server/.env.example` to `/server/.env` and set database credentials. For local HTTP development, use:
-
-   ```env
-   NODE_ENV=development
-   COOKIE_SECURE=false
-   CLIENT_URL=http://localhost:5173
-   APP_URL=http://localhost:3000
-   ```
-
-4. Import the database:
-
-   ```bash
-   cd ../server
-   npm run migrate
-   npm run seed
-   ```
-
-5. Start the backend:
-
-   ```bash
-   npm run dev
-   ```
-
-6. Start the frontend:
-
-   ```bash
-   cd ../client
-   npm run dev
-   ```
-
-The Vite dev server runs at `http://localhost:5173` and proxies `/api` requests to `http://localhost:3000`.
-
-## Hostinger MySQL Setup
-
-1. Open Hostinger hPanel.
-2. Go to **Databases** and create a MySQL database.
-3. Copy the database name, username, password, host, and port.
-4. Open **phpMyAdmin** for that database.
-5. Import `/server/sql/schema.sql`.
-6. Import `/server/sql/seed.sql`.
-
-The seed file creates default repair categories and sample articles. It also creates a starter admin user after the bcrypt hash is generated during setup.
-
-## Environment Variables on Hostinger
-
-Create these variables in the Hostinger Node.js App environment panel:
-
-```env
-PORT=3000
-NODE_ENV=production
-APP_URL=https://yourdomain.com
-CLIENT_URL=https://yourdomain.com
-
-DB_HOST=localhost
-DB_PORT=3306
-DB_NAME=your_hostinger_database_name
-DB_USER=your_hostinger_database_user
-DB_PASSWORD=your_hostinger_database_password
-
-JWT_ACCESS_SECRET=use_a_long_random_access_secret
-JWT_REFRESH_SECRET=use_a_different_long_random_refresh_secret
-ACCESS_TOKEN_EXPIRES=15m
-REFRESH_TOKEN_EXPIRES=7d
-
-COOKIE_SECURE=true
-
-AI_PROVIDER=openai
-OPENAI_API_KEY=your_openai_api_key
-GEMINI_API_KEY=your_gemini_api_key
-```
-
-Use long random values for both JWT secrets. Do not reuse the examples from `.env.example`.
-
-## Build for Hostinger
-
-From the project root:
-
-```bash
-cd client
-npm install
-npm run build
-
-cd ../server
-npm install --omit=dev
-npm start
-```
-
-The React production build is written to `/client/dist`. Express serves that folder automatically from `/server/app.js`, including React Router fallback routes.
-
-## Hostinger Node.js App Settings
-
-1. Upload the full project with both `/client` and `/server`.
-2. In Hostinger Node.js App, set the application root to the project folder if available.
-3. Set the startup file to:
-
-   ```text
-   server/app.js
-   ```
-
-4. Set environment variables.
-5. Run dependency installation for `/server`.
-6. Build the React app in `/client`.
-7. Restart the Node.js app from hPanel.
-
-## Creating the First Admin User
-
-The seed file includes:
+Created automatically only when no admin exists:
 
 ```text
-Email: admin@mobilerepair.test
+Email: admin@gsmportal.local
 Password: Admin@12345!
 ```
 
-After the project dependencies are installed, the included seed hash should already match this password. Change the email and password immediately after first login by updating the database record or creating your own admin insert with a fresh bcrypt hash.
+Change this password after first login.
 
-To generate a new bcrypt hash:
+## Local Production Setup
+
+Run from the project root:
 
 ```bash
-cd server
+npm install
+cp .env.example .env
+npm run build
+npm start
+```
+
+Open:
+
+```text
+http://localhost:3000
+```
+
+Health check:
+
+```text
+http://localhost:3000/api/health
+```
+
+Expected:
+
+```json
+{
+  "ok": true,
+  "app": "Mobile Repair AI Student Portal",
+  "database": "sqlite",
+  "status": "running"
+}
+```
+
+## Development Mode
+
+Terminal 1:
+
+```bash
+npm run dev
+```
+
+Terminal 2:
+
+```bash
+cd client
+npm run dev
+```
+
+Frontend dev server:
+
+```text
+http://localhost:5173
+```
+
+The Vite proxy forwards `/api` to `http://localhost:3000`. In production there is no separate frontend/backend URL; the React app calls `/api` on the same origin.
+
+## Hostinger Deployment
+
+Use one Hostinger Node.js app.
+
+Recommended settings:
+
+```text
+Framework: Express
+Node version: 22.x
+Root directory: project root
+Entry file: server/app.js
+Install command: npm install
+Build command: npm run build
+Start command: npm start
+```
+
+Steps:
+
+1. Upload the full project or connect GitHub.
+2. Set the Hostinger Node app root to the project root.
+3. Set entry file to `server/app.js`.
+4. Add environment variables from `.env.example`.
+5. Run install command `npm install`.
+6. Run build command `npm run build`.
+7. Start/restart the app with `npm start`.
+8. Visit `/api/health`.
+9. Login with the default admin if this is the first startup.
+
+## Environment Variables
+
+Use `.env.example` as the template:
+
+```env
+NODE_ENV=production
+PORT=3000
+APP_URL=https://yourdomain.com
+CLIENT_URL=https://yourdomain.com
+JWT_ACCESS_SECRET=replace_with_long_random_secret
+JWT_REFRESH_SECRET=replace_with_another_long_random_secret
+ACCESS_TOKEN_EXPIRES=15m
+REFRESH_TOKEN_EXPIRES=7d
+COOKIE_SECURE=true
+AI_PROVIDER=gemini
+GEMINI_API_KEY=your_gemini_api_key_optional
+GEMINI_MODEL=gemini-2.5-flash
+SQLITE_DB_PATH=server/data/app.sqlite
+```
+
+There are no database host/user/password variables. SQLite is local and automatic.
+
+## Database
+
+The app creates this file automatically:
+
+```text
+server/data/app.sqlite
+```
+
+The server creates the `server/data` folder if it does not exist.
+
+Tables are created automatically on startup:
+
+- `users`
+- `categories`
+- `notes`
+- `saved_links`
+- `articles`
+- `ai_chats`
+- `refresh_tokens`
+- `audit_logs`
+
+Seeded categories are inserted automatically. The first admin is created only if no admin account exists.
+
+## Manual Database Initialization
+
+```bash
+npm run init-db
+```
+
+You usually do not need this because startup initializes the database automatically.
+
+## Backup Database
+
+Stop the app or make sure there are no active writes, then copy:
+
+```text
+server/data/app.sqlite
+```
+
+Keep that file safe. It contains users, notes, links, articles, AI chats, refresh tokens, and audit logs.
+
+## Reset Database Safely
+
+1. Stop the Node app.
+2. Back up `server/data/app.sqlite`.
+3. Delete `server/data/app.sqlite`.
+4. Start the app again.
+
+The app will create a fresh database and default admin.
+
+## Change Admin Password
+
+Login as admin, open:
+
+```text
+/admin/users
+```
+
+Use the user management reset password action.
+
+If you need a manual bcrypt hash:
+
+```bash
 node -e "const bcrypt=require('bcrypt'); bcrypt.hash('NewStrongPassword!123',12).then(console.log)"
 ```
 
-Put the generated hash into `server/sql/seed.sql` before importing, or update the admin record directly in phpMyAdmin.
+Then update the relevant `users.password_hash` value with your preferred SQLite tool.
 
-## Switching AI Provider
+## Generate JWT Secrets
 
-OpenAI is used when:
+Use long random strings:
 
-```env
-AI_PROVIDER=openai
-OPENAI_API_KEY=...
+```bash
+node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"
 ```
 
-Gemini is used when:
+Generate two different values:
+
+- `JWT_ACCESS_SECRET`
+- `JWT_REFRESH_SECRET`
+
+## Gemini API
+
+Set:
 
 ```env
-AI_PROVIDER=gemini
-GEMINI_API_KEY=...
+GEMINI_API_KEY=your_key_here
+GEMINI_MODEL=gemini-2.5-flash
 ```
 
-API keys are read only by the Express backend. They are never exposed to React.
+If no key is configured, the AI assistant will not crash. It returns:
 
-## Security Included
+```text
+AI service is not configured yet. Please add GEMINI_API_KEY in environment variables.
+```
 
-- bcrypt password hashing
-- JWT access tokens
-- In-memory access token storage
-- HttpOnly refresh token cookie
-- Refresh token rotation and server-side token hashes
-- Helmet security headers
-- CORS restricted to `CLIENT_URL` and `APP_URL`
-- API and login rate limiting
-- Role-based admin and student route protection
-- express-validator form validation
-- URL validation for saved links and media URLs
-- Parameterized MySQL queries through `mysql2`
-- React text rendering without unsafe HTML injection
-- Secure backend error responses
+## Important Routes
+
+Auth:
+
+- `POST /api/auth/register`
+- `POST /api/auth/login`
+- `POST /api/auth/admin-login`
+- `POST /api/auth/admin/login`
+- `POST /api/auth/logout`
+- `POST /api/auth/refresh`
+- `GET /api/auth/me`
+
+Dashboard:
+
+- `GET /api/dashboard`
+- `GET /api/dashboard/student`
+- `GET /api/dashboard/admin`
+
+Admin user management:
+
+- `GET /api/admin/users`
+- `GET /api/admin/users/:id`
+- `POST /api/admin/users`
+- `PUT /api/admin/users/:id`
+- `DELETE /api/admin/users/:id`
+- `PATCH /api/admin/users/:id/status`
+- `PATCH /api/admin/users/:id/role`
+- `PATCH /api/admin/users/:id/reset-password`
 
 ## Troubleshooting
 
-### Database Connection Errors
+### Login Fails
 
-Check `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, and `DB_PASSWORD`. Hostinger database names and users often include account prefixes. Confirm the database user has permission for the selected database.
+Check:
 
-### React 404 Errors After Refresh
+- `/api/health` returns ok.
+- The database file exists at `server/data/app.sqlite`.
+- The user status is `active`.
+- You are using the correct admin route: `/admin/login`.
+- `COOKIE_SECURE=false` for local HTTP.
+- `COOKIE_SECURE=true` for HTTPS production.
 
-Make sure the built `/client/dist` folder exists and the Hostinger startup file is `server/app.js`. Express serves `index.html` for non-API routes so React Router can handle `/dashboard`, `/articles/:slug`, and admin pages.
+### Missing React Build
 
-### Missing Environment Variables
+If the browser says the React production build is missing, run:
 
-Open `/api/health` first. If the API is running but login or AI fails, check the Hostinger Node.js environment panel and restart the app after edits.
+```bash
+npm run build
+```
 
-### Refresh Token Cookie Not Working Locally
+The build must exist at:
 
-Use `COOKIE_SECURE=false` for local HTTP development. Use `COOKIE_SECURE=true` only on HTTPS production domains.
+```text
+client/dist
+```
 
-### CORS Errors
+### React Router Refresh 404
 
-Set `CLIENT_URL` and `APP_URL` to the exact public domain, including `https://`. If you use both `www` and non-`www`, include both as comma-separated values.
+Use `npm start` and open the Express app URL. Express serves `client/dist/index.html` for frontend routes such as `/dashboard`, `/admin/users`, and `/articles/:slug`.
 
-### AI Gives Fallback Responses
+### File Permission Problems
 
-The backend returns a safe fallback when no AI key is configured or the provider request fails. Add a valid `OPENAI_API_KEY` or `GEMINI_API_KEY`, set `AI_PROVIDER`, then restart the Node.js app.
+Hostinger must allow the Node app to write to:
+
+```text
+server/data
+```
+
+If SQLite cannot create or update the database, check folder write permissions.
+
+### API 404
+
+API routes start with `/api`. Frontend routes do not.
+
+Examples:
+
+```text
+/api/health
+/api/auth/login
+/api/admin/users
+```
+
+### AI Not Responding
+
+If `GEMINI_API_KEY` is missing, the app returns a safe configuration message. Add the key and restart the app.
+
+### CORS Problems
+
+Production is same-origin, so CORS should not block. In development, allowed origins are:
+
+```text
+http://localhost:5173
+http://localhost:3000
+```
+
+Set `APP_URL` and `CLIENT_URL` to your production domain on Hostinger.
+
+## Publish Checklist
+
+Before publishing:
+
+```bash
+npm install
+npm run build
+npm start
+```
+
+Check:
+
+- `/api/health` is ok.
+- Admin login works.
+- Student registration works.
+- Admin can create/edit/reset/deactivate users.
+- Notes add/edit/delete works.
+- Saved links add/edit/delete works.
+- Articles load.
+- AI fallback works without Gemini key.
+- AI works with Gemini key.
+- Refreshing `/dashboard` does not 404.
+- Logout works.
+
+## Cleanup
+
+Old archive artifacts were removed from the project. Deploy from the source files in this folder.

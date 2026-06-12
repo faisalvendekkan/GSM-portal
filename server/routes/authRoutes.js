@@ -28,6 +28,7 @@ router.post(
 
 router.post("/login", authLimiter, emailPasswordRules, validate, authController.login);
 router.post("/admin/login", authLimiter, emailPasswordRules, validate, authController.adminLogin);
+router.post("/admin-login", authLimiter, emailPasswordRules, validate, authController.adminLogin);
 router.post("/refresh", authController.refresh);
 router.post("/logout", authController.logout);
 router.get("/me", authenticate, authController.me);

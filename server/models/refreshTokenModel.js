@@ -11,7 +11,7 @@ async function storeRefreshToken({ userId, tokenHash, expiresAt }) {
 async function findActiveRefreshToken(tokenHash) {
   const rows = await query(
     `SELECT * FROM refresh_tokens
-     WHERE token_hash = ? AND revoked_at IS NULL AND expires_at > UTC_TIMESTAMP()
+     WHERE token_hash = ? AND revoked_at IS NULL AND expires_at > datetime('now')
      LIMIT 1`,
     [tokenHash]
   );
@@ -19,13 +19,13 @@ async function findActiveRefreshToken(tokenHash) {
 }
 
 async function revokeRefreshToken(tokenHash) {
-  await query("UPDATE refresh_tokens SET revoked_at = UTC_TIMESTAMP() WHERE token_hash = ? AND revoked_at IS NULL", [
+  await query("UPDATE refresh_tokens SET revoked_at = datetime('now') WHERE token_hash = ? AND revoked_at IS NULL", [
     tokenHash
   ]);
 }
 
 async function revokeUserRefreshTokens(userId) {
-  await query("UPDATE refresh_tokens SET revoked_at = UTC_TIMESTAMP() WHERE user_id = ? AND revoked_at IS NULL", [userId]);
+  await query("UPDATE refresh_tokens SET revoked_at = datetime('now') WHERE user_id = ? AND revoked_at IS NULL", [userId]);
 }
 
 module.exports = {

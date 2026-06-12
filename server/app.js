@@ -1,10 +1,11 @@
-require("dotenv").config();
-
 const cookieParser = require("cookie-parser");
 const express = require("express");
 const fs = require("fs");
 const path = require("path");
 
+const env = require("./config/env");
+const initDb = require("./db/initDb");
+const categoryModel = require("./models/categoryModel");
 const authRoutes = require("./routes/authRoutes");
 const dashboardRoutes = require("./routes/dashboardRoutes");
 const noteRoutes = require("./routes/noteRoutes");
@@ -13,9 +14,10 @@ const articleRoutes = require("./routes/articleRoutes");
 const adminRoutes = require("./routes/adminRoutes");
 const aiRoutes = require("./routes/aiRoutes");
 const { configureSecurity, apiLimiter, sanitizeRequest } = require("./middleware/security");
+const { authenticate, authorize } = require("./middleware/auth");
 
 const app = express();
-const port = process.env.PORT || 3000;
+const port = env.port;
 
 configureSecurity(app);
 app.use(express.json({ limit: "1mb" }));
@@ -26,14 +28,22 @@ app.use("/api", apiLimiter);
 
 app.get("/api/health", (req, res) => {
   res.json({
-    status: "ok",
+    ok: true,
     app: "Mobile Repair AI Student Portal",
-    environment: process.env.NODE_ENV || "development"
+    database: "sqlite",
+    status: "running"
   });
 });
 
 app.use("/api/auth", authRoutes);
 app.use("/api/dashboard", dashboardRoutes);
+app.get("/api/categories", authenticate, authorize("student", "admin"), async (req, res, next) => {
+  try {
+    res.json({ categories: await categoryModel.listCategories(req.query.search || "") });
+  } catch (error) {
+    next(error);
+  }
+});
 app.use("/api/notes", noteRoutes);
 app.use("/api/links", linkRoutes);
 app.use("/api/articles", articleRoutes);
@@ -46,6 +56,11 @@ if (fs.existsSync(clientBuildPath)) {
   app.get("*", (req, res, next) => {
     if (req.path.startsWith("/api")) return next();
     res.sendFile(path.join(clientBuildPath, "index.html"));
+  });
+} else {
+  app.get("*", (req, res, next) => {
+    if (req.path.startsWith("/api")) return next();
+    res.status(503).send("React production build not found. Run `npm run build` before starting the production server.");
   });
 }
 
@@ -62,9 +77,17 @@ app.use((err, req, res, next) => {
 });
 
 if (require.main === module) {
-  app.listen(port, () => {
-    console.log(`Mobile Repair AI Student Portal running on port ${port}`);
-  });
+  initDb()
+    .then(() => {
+      app.listen(port, () => {
+        console.log(`Mobile Repair AI Student Portal running on port ${port}`);
+        console.log(`SQLite database: ${env.sqliteDbPath}`);
+      });
+    })
+    .catch((error) => {
+      console.error("Failed to initialize SQLite database", error);
+      process.exit(1);
+    });
 }
 
 module.exports = app;

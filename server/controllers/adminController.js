@@ -197,6 +197,10 @@ async function resetUserPassword(req, res, next) {
 
 async function changeUserRole(req, res, next) {
   try {
+    if (Number(req.params.id) === Number(req.user.id) && req.body.role !== "admin") {
+      return res.status(400).json({ message: "You cannot remove your own admin role." });
+    }
+
     const existing = await userModel.getUserDetails(req.params.id);
     if (!existing) return res.status(404).json({ message: "User not found." });
 
