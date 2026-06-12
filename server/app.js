@@ -29,7 +29,6 @@ app.use("/api", apiLimiter);
 app.get("/api/health", (req, res) => {
   res.json({
     ok: true,
-    app: "Mobile Repair AI Student Portal",
     database: "sqlite",
     status: "running"
   });
@@ -76,18 +75,22 @@ app.use((err, req, res, next) => {
   });
 });
 
-if (require.main === module) {
-  initDb()
-    .then(() => {
-      app.listen(port, () => {
-        console.log(`Mobile Repair AI Student Portal running on port ${port}`);
-        console.log(`SQLite database: ${env.sqliteDbPath}`);
-      });
-    })
-    .catch((error) => {
-      console.error("Failed to initialize SQLite database", error);
-      process.exit(1);
+async function startServer() {
+  try {
+    await initDb();
+    app.listen(port, () => {
+      console.log(`Mobile Repair AI Student Portal running on port ${port}`);
+      console.log(`SQLite database: ${env.sqliteDbPath}`);
     });
+  } catch (error) {
+    console.error("Failed to initialize SQLite database before server startup.");
+    console.error(error && error.stack ? error.stack : error);
+    process.exit(1);
+  }
+}
+
+if (require.main === module) {
+  startServer();
 }
 
 module.exports = app;

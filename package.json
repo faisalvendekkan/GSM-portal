@@ -4,7 +4,7 @@
   "description": "Single-app production build for the Mobile Repair AI Student Portal.",
   "main": "server/app.js",
   "scripts": {
-    "postinstall": "cd client && npm install --include=dev",
+    "postinstall": "cd client && npm install --include=dev && npm run build",
     "build": "cd client && npm install --include=dev && npm run build",
     "start": "node server/app.js",
     "dev": "node server/app.js",

@@ -6,6 +6,7 @@ const env = require("./env");
 let SQL = null;
 let db = null;
 let initialized = false;
+let initPromise = null;
 
 function ensureDataDir() {
   fs.mkdirSync(path.dirname(env.sqliteDbPath), { recursive: true });
@@ -20,31 +21,57 @@ function persist() {
 
 async function initializeDatabase() {
   if (initialized) return db;
-  ensureDataDir();
-  SQL = await initSqlJs({
-    locateFile(file) {
-      return require.resolve(`sql.js/dist/${file}`);
-    }
-  });
+  if (initPromise) return initPromise;
 
-  if (fs.existsSync(env.sqliteDbPath)) {
-    const fileBuffer = fs.readFileSync(env.sqliteDbPath);
-    db = new SQL.Database(fileBuffer);
-  } else {
-    db = new SQL.Database();
-    persist();
+  initPromise = (async () => {
+    ensureDataDir();
+    SQL = await initSqlJs({
+      locateFile(file) {
+        return require.resolve(`sql.js/dist/${file}`);
+      }
+    });
+
+    if (fs.existsSync(env.sqliteDbPath)) {
+      const fileBuffer = fs.readFileSync(env.sqliteDbPath);
+      db = new SQL.Database(fileBuffer);
+    } else {
+      db = new SQL.Database();
+      persist();
+    }
+
+    db.run("PRAGMA foreign_keys = ON");
+    initialized = true;
+    return db;
+  })();
+
+  try {
+    return await initPromise;
+  } catch (error) {
+    initPromise = null;
+    db = null;
+    initialized = false;
+    throw error;
+  }
+}
+
+async function getDb() {
+  if (!initialized || !db) {
+    await initializeDatabase();
   }
 
-  db.run("PRAGMA foreign_keys = ON");
-  initialized = true;
+  if (!db) {
+    throw new Error("SQLite database initialization failed before query execution.");
+  }
+
   return db;
 }
 
-function requireDb() {
-  if (!db) {
-    throw new Error("SQLite database is not initialized. Run npm run init-db or restart the server.");
-  }
-  return db;
+async function resetDatabaseForTests() {
+  if (db) db.close();
+  SQL = null;
+  db = null;
+  initialized = false;
+  initPromise = null;
 }
 
 function normalizeParams(params = []) {
@@ -56,7 +83,7 @@ function isRead(sql) {
 }
 
 async function query(sql, params = []) {
-  const database = requireDb();
+  const database = await getDb();
   const stmt = database.prepare(sql);
   const normalized = normalizeParams(params);
 
@@ -84,13 +111,13 @@ async function query(sql, params = []) {
 }
 
 async function exec(sql) {
-  const database = requireDb();
-  database.run(sql);
+  const database = await getDb();
+  database.exec(sql);
   persist();
 }
 
 async function transaction(callback) {
-  const database = requireDb();
+  const database = await getDb();
   database.run("BEGIN");
   try {
     const result = await callback(database);
@@ -108,5 +135,6 @@ module.exports = {
   query,
   exec,
   transaction,
-  persist
+  persist,
+  resetDatabaseForTests
 };
