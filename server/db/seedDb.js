@@ -1,6 +1,6 @@
 const bcrypt = require("bcrypt");
 const env = require("../config/env");
-const { query } = require("../config/database");
+const { query, saveDatabase } = require("../config/database");
 
 const categories = [
   ["Display Repair", "display-repair", "LCD, OLED, touch, backlight, and display connector diagnosis."],
@@ -26,11 +26,12 @@ async function ensureDefaultAdmin({ forceReset = false } = {}) {
     const passwordHash = await bcrypt.hash(defaultPassword, 12);
     await query(
       `UPDATE users
-       SET password_hash = ?, role = 'admin', status = 'active', updated_at = datetime('now')
+       SET email = ?, password_hash = ?, role = 'admin', status = 'active', updated_at = datetime('now')
        WHERE id = ?`,
-      [passwordHash, matchingAdmins[0].id]
+      [defaultEmail, passwordHash, matchingAdmins[0].id]
     );
-    console.log("Default admin password reset successfully");
+    saveDatabase();
+    console.log(`Default admin updated and activated: ${defaultEmail}`);
     return;
   }
 
@@ -41,6 +42,7 @@ async function ensureDefaultAdmin({ forceReset = false } = {}) {
        VALUES (?, ?, ?, ?, 'admin', 'active')`,
       ["Portal Admin", "Portal Admin", defaultEmail, passwordHash]
     );
+    saveDatabase();
     console.log(`Default admin created: ${defaultEmail}`);
   } else {
     console.log("Default admin already exists.");
