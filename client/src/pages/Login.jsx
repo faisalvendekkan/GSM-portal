@@ -36,13 +36,13 @@ export default function Login({ adminMode = false }) {
 
   return (
     <div className="grid min-h-screen place-items-center bg-navy-950 px-4 py-8 text-white">
-      <div className="fixed inset-0 -z-10 bg-[radial-gradient(circle_at_top,rgba(0,194,255,0.24),transparent_34%),linear-gradient(135deg,#030a14,#0b2a3a)]" />
+      <div className="fixed inset-0 -z-10 bg-[radial-gradient(circle_at_top,rgba(0,183,47,0.22),transparent_34%),radial-gradient(circle_at_bottom_right,rgba(0,104,145,0.16),transparent_40%),linear-gradient(135deg,#07120c,#0f2c28)]" />
       <Card className="w-full max-w-md">
         <div className="mb-7 flex items-center gap-3">
           <img
-            src="/brand/gsm-logo.svg"
+            src="/brand/gsm-logo.jpeg"
             alt="GSM Student Portal"
-            className="h-12 w-12 rounded-lg shadow-glow ring-1 ring-electric-400/35"
+            className="h-12 w-12 rounded-lg bg-white object-contain p-1 shadow-glow ring-1 ring-electric-400/35"
           />
           <div>
             <p className="text-sm text-electric-400">{isAdminLogin ? "Admin access" : "Student access"}</p>

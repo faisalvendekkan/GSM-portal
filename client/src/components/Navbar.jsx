@@ -17,9 +17,9 @@ export default function Navbar() {
       <div className="mx-auto flex max-w-7xl items-center justify-between gap-3">
         <Link to={user?.role === "admin" ? "/admin" : "/dashboard"} className="flex min-w-0 items-center gap-3">
           <img
-            src="/brand/gsm-logo.svg"
+            src="/brand/gsm-logo.jpeg"
             alt="GSM Student Portal"
-            className="h-10 w-10 shrink-0 rounded-lg shadow-glow ring-1 ring-electric-400/35"
+            className="h-10 w-10 shrink-0 rounded-lg bg-white object-contain p-1 shadow-glow ring-1 ring-electric-400/35"
           />
           <div className="min-w-0">
             <p className="truncate text-sm text-slate-400">GSM</p>

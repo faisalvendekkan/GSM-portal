@@ -36,9 +36,9 @@ export default function Sidebar() {
     <aside className="fixed left-0 top-0 z-30 hidden h-screen w-72 border-r border-white/10 bg-navy-950/90 p-5 backdrop-blur-xl lg:block">
       <div className="mb-8 flex items-center gap-3">
         <img
-          src="/brand/gsm-logo.svg"
+          src="/brand/gsm-logo.jpeg"
           alt="GSM Student Portal"
-          className="h-11 w-11 rounded-lg shadow-glow ring-1 ring-electric-400/35"
+          className="h-11 w-11 rounded-lg bg-white object-contain p-1 shadow-glow ring-1 ring-electric-400/35"
         />
         <div>
           <p className="text-sm text-slate-400">GSM Student</p>

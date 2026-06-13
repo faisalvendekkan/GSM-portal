@@ -16,9 +16,9 @@ export default function Landing() {
           <div className="max-w-3xl">
             <div className="mb-5 flex flex-wrap items-center gap-3">
               <img
-                src="/brand/gsm-logo.svg"
+                src="/brand/gsm-logo.jpeg"
                 alt="GSM Student Portal"
-                className="h-14 w-14 rounded-lg shadow-glow ring-1 ring-electric-400/35"
+                className="h-14 w-14 rounded-lg bg-white object-contain p-1 shadow-glow ring-1 ring-electric-400/35"
               />
               <p className="inline-flex rounded-lg border border-electric-400/40 bg-electric-500/[0.12] px-3 py-2 text-sm text-cyan-100">
                 Technician training workspace

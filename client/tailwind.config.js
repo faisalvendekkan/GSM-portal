@@ -5,17 +5,17 @@ export default {
     extend: {
       colors: {
         navy: {
-          950: "#030a14",
-          900: "#061827",
-          800: "#0b2a3a"
+          950: "#07120c",
+          900: "#0b1a18",
+          800: "#0f2c28"
         },
         electric: {
-          500: "#00c2ff",
-          400: "#35f5e6"
+          500: "#00b72f",
+          400: "#29e85a"
         }
       },
       boxShadow: {
-        glow: "0 0 30px rgba(0, 194, 255, 0.32), 0 0 54px rgba(53, 245, 230, 0.18)"
+        glow: "0 0 28px rgba(0, 183, 47, 0.28), 0 0 52px rgba(0, 104, 145, 0.18)"
       },
       fontFamily: {
         sans: ["Inter", "ui-sans-serif", "system-ui", "Segoe UI", "Arial", "sans-serif"]
