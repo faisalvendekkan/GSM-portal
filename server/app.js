@@ -79,7 +79,7 @@ app.post("/api/admin-reset", async (req, res, next) => {
     const admin = await resetDefaultAdmin();
     return res.json({
       ok: true,
-      message: "Admin reset completed",
+      message: "Admin user created or updated successfully",
       email: admin.email
     });
   } catch (error) {

@@ -43,10 +43,11 @@ async function findDefaultAdmin() {
   return rows[0] || null;
 }
 
-async function resetDefaultAdmin() {
+async function createOrUpdateAdminUser({ logAction = true } = {}) {
   const { email, password } = getDefaultAdminCredentials();
   const existing = await findDefaultAdmin();
   const passwordHash = await bcrypt.hash(password, 12);
+  let action = "created";
 
   if (existing) {
     await query(
@@ -55,22 +56,34 @@ async function resetDefaultAdmin() {
        WHERE id = ?`,
       [email, passwordHash, existing.id]
     );
+    action = "updated";
   } else {
     await query(
       `INSERT INTO users (name, full_name, email, password_hash, role, status, created_at, updated_at)
        VALUES (?, ?, ?, ?, 'admin', 'active', datetime('now'), datetime('now'))`,
-      ["Default Admin", "Default Admin", email, passwordHash]
+      ["Portal Admin", "Portal Admin", email, passwordHash]
     );
   }
 
   saveDatabase();
-  console.log("Default admin reset completed");
-  return findDefaultAdmin();
+  if (logAction) console.log(`Admin user ${action}: ${email}`);
+  return { admin: await findDefaultAdmin(), action };
+}
+
+async function resetDefaultAdmin() {
+  const { admin } = await createOrUpdateAdminUser();
+  return admin;
 }
 
 async function resetDefaultAdminIfEnabled() {
-  if (!env.resetDefaultAdmin) return null;
-  return resetDefaultAdmin();
+  console.log("Admin setup started");
+  try {
+    if (!env.resetDefaultAdmin) return null;
+    const { admin } = await createOrUpdateAdminUser();
+    return admin;
+  } finally {
+    console.log("Admin setup completed");
+  }
 }
 
 async function getDefaultAdminCheck() {
@@ -107,7 +120,7 @@ async function ensureDefaultAdmin({ forceReset = false } = {}) {
     await query(
       `INSERT INTO users (name, full_name, email, password_hash, role, status, created_at, updated_at)
        VALUES (?, ?, ?, ?, 'admin', 'active', datetime('now'), datetime('now'))`,
-      ["Default Admin", "Default Admin", email, passwordHash]
+      ["Portal Admin", "Portal Admin", email, passwordHash]
     );
     saveDatabase();
     console.log(`Default admin created: ${email}`);
@@ -186,6 +199,7 @@ if (require.main === module) {
 
 module.exports = seedDb;
 module.exports.ensureDefaultAdmin = ensureDefaultAdmin;
+module.exports.createOrUpdateAdminUser = createOrUpdateAdminUser;
 module.exports.resetDefaultAdmin = resetDefaultAdmin;
 module.exports.resetDefaultAdminIfEnabled = resetDefaultAdminIfEnabled;
 module.exports.getDefaultAdminCheck = getDefaultAdminCheck;
