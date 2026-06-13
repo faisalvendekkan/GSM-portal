@@ -30,6 +30,12 @@ function saveDatabase() {
   fs.writeFileSync(env.sqliteDbPath, Buffer.from(data));
 }
 
+function openExistingDatabase(fileBuffer) {
+  const opened = fileBuffer.length ? new SQL.Database(fileBuffer) : new SQL.Database();
+  opened.exec("SELECT name FROM sqlite_master LIMIT 1");
+  return opened;
+}
+
 async function initializeDatabase() {
   if (initialized) return db;
   if (initPromise) return initPromise;
@@ -45,7 +51,15 @@ async function initializeDatabase() {
 
     if (fs.existsSync(env.sqliteDbPath)) {
       const fileBuffer = fs.readFileSync(env.sqliteDbPath);
-      db = new SQL.Database(fileBuffer);
+      try {
+        db = openExistingDatabase(fileBuffer);
+      } catch (error) {
+        const backupPath = `${env.sqliteDbPath}.corrupt-${Date.now()}`;
+        fs.renameSync(env.sqliteDbPath, backupPath);
+        console.error(`SQLite database could not be opened. Backed it up to: ${backupPath}`);
+        db = new SQL.Database();
+        saveDatabase();
+      }
     } else {
       db = new SQL.Database();
       saveDatabase();
@@ -94,6 +108,48 @@ function missingRequiredTables() {
   return REQUIRED_TABLES.filter((tableName) => !tableExists(tableName));
 }
 
+function tableColumns(tableName) {
+  if (!db || !tableExists(tableName)) return [];
+  const escapedTable = String(tableName).replace(/'/g, "''");
+  const result = db.exec(`PRAGMA table_info('${escapedTable}')`);
+  return (result[0]?.values || []).map((row) => row[1]);
+}
+
+function ensureColumn(tableName, columnName, definition) {
+  const columns = tableColumns(tableName);
+  if (!columns.length || columns.includes(columnName)) return;
+  db.exec(`ALTER TABLE ${tableName} ADD COLUMN ${columnName} ${definition}`);
+  console.log(`SQLite schema repaired: added ${tableName}.${columnName}`);
+}
+
+function ensureColumnRepairs() {
+  ensureColumn("users", "name", "TEXT");
+  ensureColumn("users", "full_name", "TEXT");
+  ensureColumn("users", "phone", "TEXT");
+  ensureColumn("users", "bio", "TEXT");
+  ensureColumn("users", "last_login_at", "TEXT");
+  ensureColumn("users", "created_at", "TEXT");
+  ensureColumn("users", "updated_at", "TEXT");
+  ensureColumn("categories", "created_by", "INTEGER");
+  ensureColumn("categories", "created_at", "TEXT");
+  ensureColumn("categories", "updated_at", "TEXT");
+  ensureColumn("articles", "created_by", "INTEGER");
+  ensureColumn("articles", "video_url", "TEXT");
+  ensureColumn("articles", "tags", "TEXT");
+  ensureColumn("articles", "created_at", "TEXT");
+  ensureColumn("articles", "updated_at", "TEXT");
+  ensureColumn("notes", "tags", "TEXT");
+  ensureColumn("notes", "created_at", "TEXT");
+  ensureColumn("notes", "updated_at", "TEXT");
+  ensureColumn("saved_links", "description", "TEXT");
+  ensureColumn("saved_links", "created_at", "TEXT");
+  ensureColumn("saved_links", "updated_at", "TEXT");
+  ensureColumn("ai_chats", "provider", "TEXT");
+  ensureColumn("ai_chats", "created_at", "TEXT");
+  ensureColumn("refresh_tokens", "revoked_at", "TEXT");
+  ensureColumn("refresh_tokens", "created_at", "TEXT");
+}
+
 function ensureSchema() {
   if (!db) {
     throw new Error("SQLite database must be opened before ensuring schema.");
@@ -102,6 +158,13 @@ function ensureSchema() {
   const missingTables = missingRequiredTables();
   const schema = require("../db/schema");
   db.exec(schema);
+  ensureColumnRepairs();
+  db.exec(`
+    UPDATE users SET full_name = COALESCE(full_name, name, email, 'User') WHERE full_name IS NULL;
+    UPDATE users SET name = COALESCE(name, full_name, email, 'User') WHERE name IS NULL;
+    UPDATE users SET created_at = COALESCE(created_at, datetime('now')) WHERE created_at IS NULL;
+    UPDATE users SET updated_at = COALESCE(updated_at, datetime('now')) WHERE updated_at IS NULL;
+  `);
   saveDatabase();
 
   if (missingTables.length) {

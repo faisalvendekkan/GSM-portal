@@ -1,6 +1,7 @@
 const bcrypt = require("bcrypt");
 const env = require("../config/env");
 const { query, saveDatabase } = require("../config/database");
+const { normalizeEmail } = require("../utils/normalize");
 
 const categories = [
   ["Display Repair", "display-repair", "LCD, OLED, touch, backlight, and display connector diagnosis."],
@@ -19,14 +20,14 @@ const categories = [
 
 function getDefaultAdminCredentials() {
   return {
-    email: String(env.defaultAdminEmail || "admin@gsmportal.local").trim().toLowerCase(),
-    password: env.defaultAdminPassword || "Admin@12345!"
+    email: normalizeEmail(env.defaultAdminEmail, "info@abilix.in"),
+    password: env.defaultAdminPassword || "AbiPassword@123"
   };
 }
 
 function getDefaultStudentCredentials() {
   return {
-    email: String(env.defaultStudentEmail || "student@gsmportal.local").trim().toLowerCase(),
+    email: normalizeEmail(env.defaultStudentEmail, "student@gsmportal.local"),
     password: env.defaultStudentPassword || "Student@12345!"
   };
 }
@@ -44,35 +45,52 @@ function publicAdminCheck(row, passwordMatchesDefault = false) {
 async function findDefaultAdmin() {
   const { email } = getDefaultAdminCredentials();
   const rows = await query(
-    "SELECT id, email, password_hash, role, status FROM users WHERE lower(trim(email)) = ? LIMIT 1",
-    [email]
+    `SELECT id, email, password_hash, role, status FROM users
+     WHERE lower(trim(email)) = ?
+     ORDER BY CASE WHEN email = ? THEN 0 ELSE 1 END, id ASC
+     LIMIT 1`,
+    [email, email]
   );
   return rows[0] || null;
 }
 
 async function findUserByNormalizedEmail(email) {
+  const normalized = normalizeEmail(email);
   const rows = await query(
-    "SELECT id, email, password_hash, role, status FROM users WHERE lower(trim(email)) = ? ORDER BY id ASC LIMIT 1",
-    [String(email || "").trim().toLowerCase()]
+    `SELECT id, email, password_hash, role, status FROM users
+     WHERE lower(trim(email)) = ?
+     ORDER BY CASE WHEN email = ? THEN 0 ELSE 1 END, id ASC
+     LIMIT 1`,
+    [normalized, normalized]
   );
   return rows[0] || null;
 }
 
-async function createOrUpdateAdminUser({ logAction = true } = {}) {
+async function createOrUpdateAdminUser({ logAction = true, resetPassword = true } = {}) {
   const { email, password } = getDefaultAdminCredentials();
   const existing = await findDefaultAdmin();
-  const passwordHash = await bcrypt.hash(password, 12);
   let action = "created";
 
   if (existing) {
-    await query(
-      `UPDATE users
-       SET email = ?, password_hash = ?, role = 'admin', status = 'active', updated_at = datetime('now')
-       WHERE id = ?`,
-      [email, passwordHash, existing.id]
-    );
+    if (resetPassword) {
+      const passwordHash = await bcrypt.hash(password, 12);
+      await query(
+        `UPDATE users
+         SET email = ?, password_hash = ?, role = 'admin', status = 'active', updated_at = datetime('now')
+         WHERE id = ?`,
+        [email, passwordHash, existing.id]
+      );
+    } else {
+      await query(
+        `UPDATE users
+         SET email = ?, role = 'admin', status = 'active', updated_at = datetime('now')
+         WHERE id = ?`,
+        [email, existing.id]
+      );
+    }
     action = "updated";
   } else {
+    const passwordHash = await bcrypt.hash(password, 12);
     await query(
       `INSERT INTO users (name, full_name, email, password_hash, role, status, created_at, updated_at)
        VALUES (?, ?, ?, ?, 'admin', 'active', datetime('now'), datetime('now'))`,
@@ -86,19 +104,32 @@ async function createOrUpdateAdminUser({ logAction = true } = {}) {
 }
 
 async function resetDefaultAdmin() {
-  const { admin } = await createOrUpdateAdminUser();
+  const { admin } = await createOrUpdateAdminUser({ resetPassword: true });
   return admin;
 }
 
-async function resetDefaultAdminIfEnabled() {
+async function setupDefaultAdmin({ forceReset = false } = {}) {
   console.log("Admin setup started");
   try {
-    if (!env.resetDefaultAdmin) return null;
-    const { admin } = await createOrUpdateAdminUser();
+    if (forceReset || env.resetDefaultAdmin) {
+      const { admin } = await createOrUpdateAdminUser({ resetPassword: true });
+      return admin;
+    }
+
+    if (await isDefaultAdminReady()) {
+      console.log("Active admin already exists.");
+      return findDefaultAdmin();
+    }
+
+    const { admin } = await createOrUpdateAdminUser({ resetPassword: false });
     return admin;
   } finally {
     console.log("Admin setup completed");
   }
+}
+
+async function resetDefaultAdminIfEnabled() {
+  return setupDefaultAdmin();
 }
 
 async function ensureDefaultStudent() {
@@ -118,6 +149,10 @@ async function ensureDefaultStudent() {
   saveDatabase();
   console.log(`Default student created: ${email}`);
   return findUserByNormalizedEmail(email);
+}
+
+async function setupDefaultStudent() {
+  return ensureDefaultStudent();
 }
 
 async function getDefaultAdminCheck() {
@@ -140,32 +175,38 @@ async function getDefaultAdminCheck() {
   };
 }
 
+async function getDefaultStudentCheck() {
+  const { email } = getDefaultStudentCredentials();
+  const student = await findUserByNormalizedEmail(email);
+  return {
+    configuredEmail: email,
+    exists: Boolean(student),
+    email: student?.email || null,
+    role: student?.role || null,
+    status: student?.status || null
+  };
+}
+
 async function ensureDefaultAdmin({ forceReset = false } = {}) {
-  const { email, password } = getDefaultAdminCredentials();
-  const existing = await findDefaultAdmin();
-
-  if (forceReset || env.resetDefaultAdmin) {
-    await resetDefaultAdmin();
-    return;
-  }
-
-  if (!existing) {
-    const passwordHash = await bcrypt.hash(password, 12);
-    await query(
-      `INSERT INTO users (name, full_name, email, password_hash, role, status, created_at, updated_at)
-       VALUES (?, ?, ?, ?, 'admin', 'active', datetime('now'), datetime('now'))`,
-      ["Portal Admin", "Portal Admin", email, passwordHash]
-    );
-    saveDatabase();
-    console.log(`Default admin created: ${email}`);
-  } else {
-    console.log("Default admin already exists.");
-  }
+  return setupDefaultAdmin({ forceReset });
 }
 
 async function isDefaultAdminReady() {
   const rows = await query("SELECT id FROM users WHERE role = 'admin' AND status = 'active' LIMIT 1");
   return rows.length > 0;
+}
+
+async function isDefaultStudentReady() {
+  const { email } = getDefaultStudentCredentials();
+  const rows = await query(
+    `SELECT id FROM users
+     WHERE role = 'student' AND status = 'active' AND lower(trim(email)) = ?
+     LIMIT 1`,
+    [email]
+  );
+  if (rows.length) return true;
+  const activeRows = await query("SELECT id FROM users WHERE role = 'student' AND status = 'active' LIMIT 1");
+  return activeRows.length > 0;
 }
 
 async function seedDb() {
@@ -236,6 +277,10 @@ module.exports.ensureDefaultAdmin = ensureDefaultAdmin;
 module.exports.createOrUpdateAdminUser = createOrUpdateAdminUser;
 module.exports.resetDefaultAdmin = resetDefaultAdmin;
 module.exports.resetDefaultAdminIfEnabled = resetDefaultAdminIfEnabled;
+module.exports.setupDefaultAdmin = setupDefaultAdmin;
 module.exports.ensureDefaultStudent = ensureDefaultStudent;
+module.exports.setupDefaultStudent = setupDefaultStudent;
 module.exports.getDefaultAdminCheck = getDefaultAdminCheck;
+module.exports.getDefaultStudentCheck = getDefaultStudentCheck;
 module.exports.isDefaultAdminReady = isDefaultAdminReady;
+module.exports.isDefaultStudentReady = isDefaultStudentReady;

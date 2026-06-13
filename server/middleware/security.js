@@ -60,6 +60,14 @@ const authLimiter = rateLimit({
   legacyHeaders: false
 });
 
+const adminResetLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 5,
+  message: { message: "Too many admin reset attempts. Please wait and try again." },
+  standardHeaders: true,
+  legacyHeaders: false
+});
+
 function cleanValue(value) {
   if (typeof value === "string") return value.trim().replace(/\0/g, "");
   if (Array.isArray(value)) return value.map(cleanValue);
@@ -87,6 +95,7 @@ function validate(req, res, next) {
 module.exports = {
   configureSecurity,
   apiLimiter,
+  adminResetLimiter,
   authLimiter,
   sanitizeRequest,
   validate

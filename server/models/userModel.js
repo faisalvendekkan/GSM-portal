@@ -1,8 +1,5 @@
 const { query } = require("../config/db");
-
-function normalizeEmail(email) {
-  return String(email || "").trim().toLowerCase();
-}
+const { normalizeEmail } = require("../utils/normalize");
 
 function publicUser(row) {
   if (!row) return null;
@@ -31,7 +28,14 @@ async function createUser({ name, email, passwordHash, role = "student" }) {
 }
 
 async function findByEmail(email) {
-  const rows = await query("SELECT * FROM users WHERE lower(trim(email)) = ? ORDER BY id ASC LIMIT 1", [normalizeEmail(email)]);
+  const normalized = normalizeEmail(email);
+  const rows = await query(
+    `SELECT * FROM users
+     WHERE lower(trim(email)) = ?
+     ORDER BY CASE WHEN email = ? THEN 0 ELSE 1 END, id ASC
+     LIMIT 1`,
+    [normalized, normalized]
+  );
   return rows[0] || null;
 }
 

@@ -1,17 +1,12 @@
 const path = require("path");
 const dotenv = require("dotenv");
+const { normalizeEmail } = require("../utils/normalize");
 
 dotenv.config({ path: path.join(__dirname, "../.env") });
 dotenv.config({ path: path.join(__dirname, "../../.env") });
 
 function fromRoot(relativePath) {
   return path.resolve(__dirname, "../../", relativePath);
-}
-
-function normalizeEmail(value, fallback) {
-  const raw = String(value || fallback || "").trim().toLowerCase();
-  const match = raw.match(/[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/i);
-  return (match?.[0] || raw).trim().toLowerCase();
 }
 
 const env = {
@@ -27,12 +22,11 @@ const env = {
   aiProvider: process.env.AI_PROVIDER || "gemini",
   geminiApiKey: process.env.GEMINI_API_KEY || "",
   geminiModel: process.env.GEMINI_MODEL || "gemini-2.5-flash",
-  defaultAdminEmail: normalizeEmail(process.env.DEFAULT_ADMIN_EMAIL, "admin@gsmportal.local"),
-  defaultAdminPassword: process.env.DEFAULT_ADMIN_PASSWORD || "Admin@12345!",
+  defaultAdminEmail: normalizeEmail(process.env.DEFAULT_ADMIN_EMAIL, "info@abilix.in"),
+  defaultAdminPassword: process.env.DEFAULT_ADMIN_PASSWORD || "AbiPassword@123",
   defaultStudentEmail: normalizeEmail(process.env.DEFAULT_STUDENT_EMAIL, "student@gsmportal.local"),
   defaultStudentPassword: process.env.DEFAULT_STUDENT_PASSWORD || "Student@12345!",
   resetDefaultAdmin: String(process.env.RESET_DEFAULT_ADMIN || "true").toLowerCase() === "true",
-  adminDebugKey: process.env.ADMIN_DEBUG_KEY || "",
   adminResetKey: process.env.ADMIN_RESET_KEY || "",
   sqliteDbPath: path.isAbsolute(process.env.SQLITE_DB_PATH || "")
     ? process.env.SQLITE_DB_PATH

@@ -1,41 +1,85 @@
 # Mobile Repair AI Student Portal
 
-Production-ready single Node.js application for the Mobile Repair AI Student Portal.
+Single Hostinger-ready Node.js app for the Mobile Repair AI Student Portal.
 
-The React frontend, Express API, authentication, admin panel, notes, saved links, articles, AI assistant, and SQLite database run from one deployable app.
+The Express server serves both the React production build and every `/api` route. No separate backend domain, Vite-only deployment, MySQL, MongoDB, or external database is required.
 
 ## Stack
 
-- Frontend: React + Vite
-- Styling: existing Tailwind UI
-- Backend: Node.js + Express
+- Frontend: existing React + Vite app in `client/`
+- Backend: Node.js + Express in `server/`
 - Database: SQLite file at `server/data/app.sqlite`
-- SQLite package: `sql.js`
-- Auth: JWT access token + HttpOnly refresh token cookie
+- SQLite runtime: `sql.js`
 - Passwords: bcrypt hashes
-- Security: Helmet, CORS, rate limiting, express-validator
-- AI: Gemini with `GEMINI_API_KEY`
+- Auth: JWT access token plus HttpOnly refresh-token cookie
+- AI: Gemini through `GEMINI_API_KEY`
 
-No external database is required.
-
-## Default Admin
-
-Created automatically only when no admin exists:
+## Production URL
 
 ```text
-Email: admin@gsmportal.local
-Password: Admin@12345!
+https://gsm.abilix.in
+https://gsm.abilix.in/api
 ```
 
-Change this password after first login.
+The frontend should call same-origin API routes with `/api`.
 
-## Local Production Setup
+## Required Environment Variables
 
-Run from the project root:
+Use Hostinger's Node.js environment variable panel or a `.env` file.
+
+```env
+NODE_ENV=production
+PORT=3000
+APP_URL=https://gsm.abilix.in
+CLIENT_URL=https://gsm.abilix.in
+JWT_ACCESS_SECRET=replace_with_long_random_secret
+JWT_REFRESH_SECRET=replace_with_another_long_random_secret
+ACCESS_TOKEN_EXPIRES=15m
+REFRESH_TOKEN_EXPIRES=7d
+COOKIE_SECURE=true
+AI_PROVIDER=gemini
+GEMINI_API_KEY=optional_gemini_key
+GEMINI_MODEL=gemini-2.5-flash
+SQLITE_DB_PATH=server/data/app.sqlite
+VITE_API_URL=/api
+DEFAULT_ADMIN_EMAIL=info@abilix.in
+DEFAULT_ADMIN_PASSWORD=AbiPassword@123
+DEFAULT_STUDENT_EMAIL=student@gsmportal.local
+DEFAULT_STUDENT_PASSWORD=Student@12345!
+RESET_DEFAULT_ADMIN=true
+ADMIN_RESET_KEY=replace_with_long_private_reset_key
+```
+
+After admin login works in production, change:
+
+```env
+RESET_DEFAULT_ADMIN=false
+```
+
+With `RESET_DEFAULT_ADMIN=true`, every server startup force-resets the configured admin password.
+
+## Default Logins
+
+Admin:
+
+```text
+Email: info@abilix.in
+Password: AbiPassword@123
+```
+
+Student:
+
+```text
+Email: student@gsmportal.local
+Password: Student@12345!
+```
+
+These values come from environment variables when provided. Email values are trimmed, lowercased, and repaired if a `mailto:` string is accidentally pasted.
+
+## Local Setup
 
 ```bash
 npm install
-cp .env.example .env
 npm run build
 npm start
 ```
@@ -44,12 +88,64 @@ Open:
 
 ```text
 http://localhost:3000
+http://localhost:3000/api/health
 ```
 
-Health check:
+For local HTTP, use `COOKIE_SECURE=false`.
+
+## Hostinger Setup
+
+Recommended settings:
 
 ```text
-http://localhost:3000/api/health
+Framework: Express
+Node version: 22.x or 20.x
+Root directory: /
+Entry file: server/app.js
+Package manager: npm
+Install command: npm install
+Build command: npm run build
+Start command: npm start
+```
+
+Deploy the whole project. Do not deploy `client/dist` as a separate Vite site. Express serves `client/dist` and all non-API routes fall back to `client/dist/index.html`, so React Router refreshes do not 404.
+
+## Package Scripts
+
+```json
+{
+  "postinstall": "cd client && npm install --include=dev && npm run build",
+  "build": "cd client && npm install --include=dev && npm run build",
+  "start": "node server/app.js",
+  "dev": "node server/app.js",
+  "init-db": "node server/db/initDb.js",
+  "reset-admin": "node server/scripts/resetAdmin.js"
+}
+```
+
+## Database Behavior
+
+The app uses local SQLite through `sql.js`.
+
+Startup order:
+
+1. Load environment variables.
+2. Create `server/data` if missing.
+3. Open or create the SQLite file.
+4. Create missing tables and indexes.
+5. Seed default categories.
+6. Create or reset the configured admin.
+7. Create the configured default student if missing.
+8. Start the Express server.
+
+`sql.js` does not persist automatically. The app exports and writes the database back to `SQLITE_DB_PATH` after inserts, updates, deletes, schema creation, seeds, and admin reset.
+
+If the SQLite file is corrupt, the app backs it up as `app.sqlite.corrupt-...` and creates a fresh database.
+
+## Health Check
+
+```text
+GET /api/health
 ```
 
 Expected:
@@ -59,198 +155,121 @@ Expected:
   "ok": true,
   "app": "Mobile Repair AI Student Portal",
   "database": "sqlite",
+  "tablesReady": true,
+  "adminReady": true,
+  "studentReady": true,
   "status": "running"
 }
 ```
 
-## Development Mode
+## Emergency Admin Reset
 
-Terminal 1:
+```text
+POST /api/admin-reset
+Content-Type: application/json
+```
+
+Body:
+
+```json
+{
+  "key": "ADMIN_RESET_KEY value"
+}
+```
+
+Success:
+
+```json
+{
+  "ok": true,
+  "message": "Admin reset completed",
+  "email": "info@abilix.in"
+}
+```
+
+If `ADMIN_RESET_KEY` is missing or wrong, the reset does not run. This endpoint never returns passwords, password hashes, JWT secrets, or environment variables.
+
+You can also run:
 
 ```bash
-npm run dev
+npm run reset-admin
 ```
 
-Terminal 2:
-
-```bash
-cd client
-npm run dev
-```
-
-Frontend dev server:
+## Safe Debug Check
 
 ```text
-http://localhost:5173
+GET /api/debug/auth-status
+x-admin-reset-key: ADMIN_RESET_KEY value
 ```
 
-The Vite proxy forwards `/api` to `http://localhost:3000`. In production there is no separate frontend/backend URL; the React app calls `/api` on the same origin.
+Returns safe status only: configured admin email, whether admin exists, role, status, student status, and table readiness. It never returns hashes or secrets.
 
-## Hostinger Deployment
+## Public Registration
 
-Use one Hostinger Node.js app.
-
-Recommended settings:
+Public self-registration is disabled.
 
 ```text
-Framework: Express
-Node version: 22.x
-Root directory: project root
-Entry file: server/app.js
-Install command: npm install
-Build command: npm run build
-Start command: npm start
+POST /api/auth/register
 ```
 
-Steps:
+Returns:
 
-1. Upload the full project or connect GitHub.
-2. Set the Hostinger Node app root to the project root.
-3. Set entry file to `server/app.js`.
-4. Add environment variables from `.env.example`.
-5. Run install command `npm install`.
-6. Run build command `npm run build`.
-7. Start/restart the app with `npm start`.
-8. Visit `/api/health`.
-9. Login with the default admin if this is the first startup.
-
-## Environment Variables
-
-Use `.env.example` as the template:
-
-```env
-NODE_ENV=production
-PORT=3000
-APP_URL=https://yourdomain.com
-CLIENT_URL=https://yourdomain.com
-JWT_ACCESS_SECRET=replace_with_long_random_secret
-JWT_REFRESH_SECRET=replace_with_another_long_random_secret
-ACCESS_TOKEN_EXPIRES=15m
-REFRESH_TOKEN_EXPIRES=7d
-COOKIE_SECURE=true
-AI_PROVIDER=gemini
-GEMINI_API_KEY=your_gemini_api_key_optional
-GEMINI_MODEL=gemini-2.5-flash
-SQLITE_DB_PATH=server/data/app.sqlite
+```json
+{
+  "message": "Public registration is disabled. Contact administrator."
+}
 ```
 
-There are no database host/user/password variables. SQLite is local and automatic.
+The public create-account links are removed. Admin-created users in `/admin/users` still work.
 
-## Database
+## Admin User Management
 
-The app creates this file automatically:
-
-```text
-server/data/app.sqlite
-```
-
-The server creates the `server/data` folder if it does not exist.
-
-Tables are created automatically on startup:
-
-- `users`
-- `categories`
-- `notes`
-- `saved_links`
-- `articles`
-- `ai_chats`
-- `refresh_tokens`
-- `audit_logs`
-
-Seeded categories are inserted automatically. The first admin is created only if no admin account exists.
-
-## Manual Database Initialization
-
-```bash
-npm run init-db
-```
-
-You usually do not need this because startup initializes the database automatically.
-
-## Backup Database
-
-Stop the app or make sure there are no active writes, then copy:
-
-```text
-server/data/app.sqlite
-```
-
-Keep that file safe. It contains users, notes, links, articles, AI chats, refresh tokens, and audit logs.
-
-## Reset Database Safely
-
-1. Stop the Node app.
-2. Back up `server/data/app.sqlite`.
-3. Delete `server/data/app.sqlite`.
-4. Start the app again.
-
-The app will create a fresh database and default admin.
-
-## Change Admin Password
-
-Login as admin, open:
+After admin login:
 
 ```text
 /admin/users
 ```
 
-Use the user management reset password action.
+Admins can view, create, edit, delete, activate/deactivate/suspend users, change roles, and reset passwords.
 
-If you need a manual bcrypt hash:
+Protections:
 
-```bash
-node -e "const bcrypt=require('bcrypt'); bcrypt.hash('NewStrongPassword!123',12).then(console.log)"
-```
+- Admin cannot delete their own account.
+- Admin cannot deactivate or suspend their own account.
+- Admin cannot remove their own admin role.
+- Admin-created user emails are normalized.
+- Password resets use bcrypt.
+- Important actions are audit logged.
 
-Then update the relevant `users.password_hash` value with your preferred SQLite tool.
-
-## Generate JWT Secrets
-
-Use long random strings:
-
-```bash
-node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"
-```
-
-Generate two different values:
-
-- `JWT_ACCESS_SECRET`
-- `JWT_REFRESH_SECRET`
-
-## Gemini API
-
-Set:
-
-```env
-GEMINI_API_KEY=your_key_here
-GEMINI_MODEL=gemini-2.5-flash
-```
-
-If no key is configured, the AI assistant will not crash. It returns:
-
-```text
-AI service is not configured yet. Please add GEMINI_API_KEY in environment variables.
-```
-
-## Important Routes
+## API Routes
 
 Auth:
 
-- `POST /api/auth/register`
 - `POST /api/auth/login`
-- `POST /api/auth/admin-login`
 - `POST /api/auth/admin/login`
+- `POST /api/auth/admin-login`
 - `POST /api/auth/logout`
 - `POST /api/auth/refresh`
 - `GET /api/auth/me`
 
-Dashboard:
+Admin reset and debug:
 
+- `POST /api/admin-reset`
+- `GET /api/debug/auth-status`
+
+Core:
+
+- `GET /api/health`
+- `GET /api/categories`
 - `GET /api/dashboard`
 - `GET /api/dashboard/student`
 - `GET /api/dashboard/admin`
+- `GET /api/notes`
+- `GET /api/links`
+- `GET /api/articles`
+- `GET /api/ai/history`
 
-Admin user management:
+Admin:
 
 - `GET /api/admin/users`
 - `GET /api/admin/users/:id`
@@ -263,73 +282,81 @@ Admin user management:
 
 ## Troubleshooting
 
-### Login Fails
+### Correct admin login still returns 401
 
 Check:
 
-- `/api/health` returns ok.
-- The database file exists at `server/data/app.sqlite`.
-- The user status is `active`.
-- You are using the correct admin route: `/admin/login`.
-- `COOKIE_SECURE=false` for local HTTP.
-- `COOKIE_SECURE=true` for HTTPS production.
+- `DEFAULT_ADMIN_EMAIL=info@abilix.in`
+- `DEFAULT_ADMIN_PASSWORD=AbiPassword@123`
+- `RESET_DEFAULT_ADMIN=true`
+- Restart the Hostinger Node app.
+- Visit `/api/health` and confirm `adminReady:true`.
+- Call `/api/debug/auth-status` with `x-admin-reset-key`.
+- Run `npm run reset-admin` if SSH/terminal is available.
 
-### Missing React Build
+### Too many login attempts
 
-If the browser says the React production build is missing, run:
+Wait 15 minutes or restart the app. The auth rate limiter protects login endpoints.
+
+### Client build missing
+
+Run:
 
 ```bash
 npm run build
 ```
 
-The build must exist at:
+The server expects:
 
 ```text
-client/dist
+client/dist/index.html
 ```
 
-### React Router Refresh 404
+### Vite command not found
 
-Use `npm start` and open the Express app URL. Express serves `client/dist/index.html` for frontend routes such as `/dashboard`, `/admin/users`, and `/articles/:slug`.
+Run from the root:
 
-### File Permission Problems
+```bash
+npm install
+npm run build
+```
 
-Hostinger must allow the Node app to write to:
+The root `postinstall` installs client dev dependencies, including Vite.
+
+### React Router refresh gives 404
+
+Use the Express app URL, not a separate static-only host. Express sends `client/dist/index.html` for non-API routes.
+
+### SQLite data backup
+
+Back up this file before deleting or redeploying over real data:
 
 ```text
-server/data
+server/data/app.sqlite
 ```
 
-If SQLite cannot create or update the database, check folder write permissions.
+Do not delete `app.sqlite` after real users start using the app unless you intentionally want a fresh database.
 
-### API 404
+### CORS errors
 
-API routes start with `/api`. Frontend routes do not.
+Production is same-origin and should call `/api`. Set:
 
-Examples:
+```env
+APP_URL=https://gsm.abilix.in
+CLIENT_URL=https://gsm.abilix.in
+```
+
+Do not use `gsm-api.abilix.in` or localhost in production.
+
+### Gemini not configured
+
+If `GEMINI_API_KEY` is missing, AI routes return:
 
 ```text
-/api/health
-/api/auth/login
-/api/admin/users
+AI service is not configured yet. Please add GEMINI_API_KEY in environment variables.
 ```
 
-### AI Not Responding
-
-If `GEMINI_API_KEY` is missing, the app returns a safe configuration message. Add the key and restart the app.
-
-### CORS Problems
-
-Production is same-origin, so CORS should not block. In development, allowed origins are:
-
-```text
-http://localhost:5173
-http://localhost:3000
-```
-
-Set `APP_URL` and `CLIENT_URL` to your production domain on Hostinger.
-
-## Publish Checklist
+## Final Deployment Checklist
 
 Before publishing:
 
@@ -339,20 +366,17 @@ npm run build
 npm start
 ```
 
-Check:
+Then verify:
 
-- `/api/health` is ok.
-- Admin login works.
-- Student registration works.
-- Admin can create/edit/reset/deactivate users.
-- Notes add/edit/delete works.
-- Saved links add/edit/delete works.
-- Articles load.
-- AI fallback works without Gemini key.
-- AI works with Gemini key.
-- Refreshing `/dashboard` does not 404.
-- Logout works.
-
-## Cleanup
-
-Old archive artifacts were removed from the project. Deploy from the source files in this folder.
+- `/api/health` returns `adminReady:true` and `studentReady:true`.
+- `POST /api/admin-reset` works with `ADMIN_RESET_KEY`.
+- Admin login works: `info@abilix.in / AbiPassword@123`.
+- Student login works: `student@gsmportal.local / Student@12345!`.
+- Public registration returns `403`.
+- Create-account link is gone.
+- `/register` redirects to `/login`.
+- Admin can create a user.
+- Admin can reset a student password.
+- Admin cannot delete their own account.
+- Refreshing `/admin` or `/dashboard` does not 404.
+- No MySQL, MongoDB, or external database errors appear.

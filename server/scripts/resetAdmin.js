@@ -1,10 +1,10 @@
 const { initializeDatabase, saveDatabase } = require("../config/database");
-const { ensureDefaultStudent, resetDefaultAdmin } = require("../db/seedDb");
+const { resetDefaultAdmin, setupDefaultStudent } = require("../db/seedDb");
 
 async function resetAdmin() {
   await initializeDatabase();
   const admin = await resetDefaultAdmin();
-  await ensureDefaultStudent();
+  await setupDefaultStudent();
   saveDatabase();
   console.log(`Admin reset completed for ${admin.email}`);
 }

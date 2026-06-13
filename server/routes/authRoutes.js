@@ -3,18 +3,19 @@ const { body } = require("express-validator");
 const authController = require("../controllers/authController");
 const { authenticate } = require("../middleware/auth");
 const { authLimiter, validate } = require("../middleware/security");
+const { normalizeEmail } = require("../utils/normalize");
 
 const router = express.Router();
 
 const emailPasswordRules = [
-  body("email").isEmail().withMessage("Use a valid email address.").normalizeEmail(),
+  body("email").customSanitizer((value) => normalizeEmail(value)).isEmail().withMessage("Use a valid email address."),
   body("password").isString().notEmpty().withMessage("Password is required.")
 ];
 
 router.post(
   "/register",
   authLimiter,
-  (req, res) => res.status(403).json({ message: "Public registration is disabled. Please contact an admin." })
+  (req, res) => res.status(403).json({ message: "Public registration is disabled. Contact administrator." })
 );
 
 router.post("/login", authLimiter, emailPasswordRules, validate, authController.login);

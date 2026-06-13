@@ -1,13 +1,13 @@
 const { areTablesReady, initializeDatabase, saveDatabase } = require("../config/database");
 const seedDb = require("./seedDb");
-const { ensureDefaultStudent, resetDefaultAdminIfEnabled } = require("./seedDb");
+const { setupDefaultAdmin, setupDefaultStudent } = require("./seedDb");
 
 async function initDb() {
   await initializeDatabase();
   console.log(`Tables ready: ${await areTablesReady()}`);
   await seedDb();
-  await resetDefaultAdminIfEnabled();
-  await ensureDefaultStudent();
+  await setupDefaultAdmin();
+  await setupDefaultStudent();
   saveDatabase();
   console.log("SQLite database ready.");
 }

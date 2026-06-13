@@ -6,17 +6,22 @@ const path = require("path");
 const env = require("./config/env");
 const { areTablesReady } = require("./config/database");
 const initDb = require("./db/initDb");
-const { getDefaultAdminCheck, isDefaultAdminReady, resetDefaultAdmin } = require("./db/seedDb");
-const categoryModel = require("./models/categoryModel");
+const {
+  getDefaultAdminCheck,
+  getDefaultStudentCheck,
+  isDefaultAdminReady,
+  isDefaultStudentReady,
+  resetDefaultAdmin
+} = require("./db/seedDb");
 const authRoutes = require("./routes/authRoutes");
 const dashboardRoutes = require("./routes/dashboardRoutes");
+const categoryRoutes = require("./routes/categoryRoutes");
 const noteRoutes = require("./routes/noteRoutes");
 const linkRoutes = require("./routes/linkRoutes");
 const articleRoutes = require("./routes/articleRoutes");
 const adminRoutes = require("./routes/adminRoutes");
 const aiRoutes = require("./routes/aiRoutes");
-const { configureSecurity, apiLimiter, sanitizeRequest } = require("./middleware/security");
-const { authenticate, authorize } = require("./middleware/auth");
+const { configureSecurity, apiLimiter, adminResetLimiter, sanitizeRequest } = require("./middleware/security");
 
 const app = express();
 const port = env.port;
@@ -33,9 +38,11 @@ app.get("/api/health", async (req, res, next) => {
     const tablesReady = await areTablesReady();
     res.json({
       ok: true,
+      app: "Mobile Repair AI Student Portal",
       database: "sqlite",
       tablesReady,
       adminReady: await isDefaultAdminReady(),
+      studentReady: await isDefaultStudentReady(),
       status: "running"
     });
   } catch (error) {
@@ -43,32 +50,38 @@ app.get("/api/health", async (req, res, next) => {
   }
 });
 
-function getRequestKey(req, headerName, bodyName) {
-  return String(req.get(headerName) || req.body?.[bodyName] || req.query?.key || "");
-}
-
 function routeNotFound(res) {
   return res.status(404).json({ message: "Route not found" });
 }
 
-if (env.nodeEnv !== "production" || env.adminDebugKey) {
-  app.get("/api/debug/admin-check", async (req, res, next) => {
-    try {
-      if (env.adminDebugKey && getRequestKey(req, "x-admin-debug-key", "adminDebugKey") !== env.adminDebugKey) {
-        return res.status(403).json({ message: "Invalid debug key" });
-      }
-
-      return res.json({
-        ok: true,
-        admin: await getDefaultAdminCheck()
-      });
-    } catch (error) {
-      return next(error);
+app.get("/api/debug/auth-status", async (req, res, next) => {
+  try {
+    const adminResetKey = process.env.ADMIN_RESET_KEY || "";
+    if (!adminResetKey) return routeNotFound(res);
+    if (String(req.get("x-admin-reset-key") || "") !== adminResetKey) {
+      return res.status(403).json({ message: "Invalid reset key" });
     }
-  });
-}
 
-app.post("/api/admin-reset", async (req, res, next) => {
+    const [admin, student] = await Promise.all([getDefaultAdminCheck(), getDefaultStudentCheck()]);
+    return res.json({
+      ok: true,
+      tablesReady: await areTablesReady(),
+      admin: {
+        configuredEmail: admin.configuredEmail,
+        exists: admin.exists,
+        email: admin.email,
+        role: admin.role,
+        status: admin.status
+      },
+      student,
+      studentReady: await isDefaultStudentReady()
+    });
+  } catch (error) {
+    return next(error);
+  }
+});
+
+app.post("/api/admin-reset", adminResetLimiter, async (req, res, next) => {
   try {
     const adminResetKey = process.env.ADMIN_RESET_KEY || "";
     if (!adminResetKey) return routeNotFound(res);
@@ -79,7 +92,7 @@ app.post("/api/admin-reset", async (req, res, next) => {
     const admin = await resetDefaultAdmin();
     return res.json({
       ok: true,
-      message: "Admin user created or updated successfully",
+      message: "Admin reset completed",
       email: admin.email
     });
   } catch (error) {
@@ -89,13 +102,7 @@ app.post("/api/admin-reset", async (req, res, next) => {
 
 app.use("/api/auth", authRoutes);
 app.use("/api/dashboard", dashboardRoutes);
-app.get("/api/categories", authenticate, authorize("student", "admin"), async (req, res, next) => {
-  try {
-    res.json({ categories: await categoryModel.listCategories(req.query.search || "") });
-  } catch (error) {
-    next(error);
-  }
-});
+app.use("/api/categories", categoryRoutes);
 app.use("/api/notes", noteRoutes);
 app.use("/api/links", linkRoutes);
 app.use("/api/articles", articleRoutes);
@@ -112,7 +119,7 @@ if (fs.existsSync(clientBuildPath)) {
 } else {
   app.get("*", (req, res, next) => {
     if (req.path.startsWith("/api")) return next();
-    res.status(503).send("React production build not found. Run `npm run build` before starting the production server.");
+    res.status(503).send("Frontend build missing. Run npm run build.");
   });
 }
 

@@ -3,6 +3,7 @@ const { body, param } = require("express-validator");
 const adminController = require("../controllers/adminController");
 const { authenticate, authorize } = require("../middleware/auth");
 const { validate } = require("../middleware/security");
+const { normalizeEmail } = require("../utils/normalize");
 
 const router = express.Router();
 
@@ -29,7 +30,7 @@ function normalizeUserPayload(req, res, next) {
 
 const userRules = [
   body("fullName").isLength({ min: 2, max: 80 }).withMessage("Full name must be 2 to 80 characters."),
-  body("email").isEmail().withMessage("Use a valid email address.").normalizeEmail(),
+  body("email").customSanitizer((value) => normalizeEmail(value)).isEmail().withMessage("Use a valid email address."),
   body("phone").optional({ nullable: true, checkFalsy: true }).isLength({ max: 30 }).withMessage("Phone is too long."),
   body("role").isIn(["admin", "student"]).withMessage("Role must be admin or student."),
   body("status").isIn(["active", "inactive", "suspended"]).withMessage("Status must be active, inactive, or suspended.")

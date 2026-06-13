@@ -37,13 +37,6 @@ export function AuthProvider({ children }) {
     return data.user;
   }
 
-  async function register(payload) {
-    const { data } = await api.post("/auth/register", payload);
-    setAccessToken(data.accessToken);
-    setUser(data.user);
-    return data.user;
-  }
-
   async function logout() {
     try {
       await api.post("/auth/logout");
@@ -64,7 +57,6 @@ export function AuthProvider({ children }) {
       user,
       loading,
       login,
-      register,
       logout,
       updateProfile,
       isAdmin: user?.role === "admin"

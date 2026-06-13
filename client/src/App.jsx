@@ -50,6 +50,7 @@ export default function App() {
       <Route element={<ProtectedRoute roles={["admin"]} />}>
         <Route element={<DashboardLayout />}>
           <Route path="/admin" element={<AdminDashboard />} />
+          <Route path="/admin/dashboard" element={<AdminDashboard />} />
           <Route path="/admin/users" element={<AdminUsers />} />
           <Route path="/admin/users/new" element={<AdminUserForm />} />
           <Route path="/admin/users/:id" element={<AdminUserDetail />} />
