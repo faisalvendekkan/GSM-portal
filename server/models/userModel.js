@@ -1,5 +1,9 @@
 const { query } = require("../config/db");
 
+function normalizeEmail(email) {
+  return String(email || "").trim().toLowerCase();
+}
+
 function publicUser(row) {
   if (!row) return null;
   const fullName = row.full_name || row.name;
@@ -21,13 +25,13 @@ function publicUser(row) {
 async function createUser({ name, email, passwordHash, role = "student" }) {
   const result = await query(
     "INSERT INTO users (name, full_name, email, password_hash, role, status) VALUES (?, ?, ?, ?, ?, 'active')",
-    [name, name, email, passwordHash, role]
+    [name, name, normalizeEmail(email), passwordHash, role]
   );
   return findById(result.insertId);
 }
 
 async function findByEmail(email) {
-  const rows = await query("SELECT * FROM users WHERE email = ? LIMIT 1", [email]);
+  const rows = await query("SELECT * FROM users WHERE lower(trim(email)) = ? ORDER BY id ASC LIMIT 1", [normalizeEmail(email)]);
   return rows[0] || null;
 }
 
@@ -157,7 +161,7 @@ async function getUserDetails(id) {
 async function createManagedUser({ fullName, email, phone, passwordHash, role, status }) {
   const result = await query(
     "INSERT INTO users (name, full_name, email, phone, password_hash, role, status) VALUES (?, ?, ?, ?, ?, ?, ?)",
-    [fullName, fullName, email, phone || null, passwordHash, role, status]
+    [fullName, fullName, normalizeEmail(email), phone || null, passwordHash, role, status]
   );
   return getUserDetails(result.insertId);
 }
@@ -166,7 +170,7 @@ async function updateManagedUser(id, { fullName, email, phone, role, status }) {
   await query("UPDATE users SET name = ?, full_name = ?, email = ?, phone = ?, role = ?, status = ? WHERE id = ?", [
     fullName,
     fullName,
-    email,
+    normalizeEmail(email),
     phone || null,
     role,
     status,

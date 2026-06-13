@@ -24,6 +24,13 @@ function getDefaultAdminCredentials() {
   };
 }
 
+function getDefaultStudentCredentials() {
+  return {
+    email: String(env.defaultStudentEmail || "student@gsmportal.local").trim().toLowerCase(),
+    password: env.defaultStudentPassword || "Student@12345!"
+  };
+}
+
 function publicAdminCheck(row, passwordMatchesDefault = false) {
   return {
     exists: Boolean(row),
@@ -39,6 +46,14 @@ async function findDefaultAdmin() {
   const rows = await query(
     "SELECT id, email, password_hash, role, status FROM users WHERE lower(trim(email)) = ? LIMIT 1",
     [email]
+  );
+  return rows[0] || null;
+}
+
+async function findUserByNormalizedEmail(email) {
+  const rows = await query(
+    "SELECT id, email, password_hash, role, status FROM users WHERE lower(trim(email)) = ? ORDER BY id ASC LIMIT 1",
+    [String(email || "").trim().toLowerCase()]
   );
   return rows[0] || null;
 }
@@ -84,6 +99,25 @@ async function resetDefaultAdminIfEnabled() {
   } finally {
     console.log("Admin setup completed");
   }
+}
+
+async function ensureDefaultStudent() {
+  const { email, password } = getDefaultStudentCredentials();
+  const existing = await findUserByNormalizedEmail(email);
+  if (existing) {
+    console.log(`Default student already exists: ${email}`);
+    return existing;
+  }
+
+  const passwordHash = await bcrypt.hash(password, 12);
+  await query(
+    `INSERT INTO users (name, full_name, email, password_hash, role, status, created_at, updated_at)
+     VALUES (?, ?, ?, ?, 'student', 'active', datetime('now'), datetime('now'))`,
+    ["Default Student", "Default Student", email, passwordHash]
+  );
+  saveDatabase();
+  console.log(`Default student created: ${email}`);
+  return findUserByNormalizedEmail(email);
 }
 
 async function getDefaultAdminCheck() {
@@ -202,5 +236,6 @@ module.exports.ensureDefaultAdmin = ensureDefaultAdmin;
 module.exports.createOrUpdateAdminUser = createOrUpdateAdminUser;
 module.exports.resetDefaultAdmin = resetDefaultAdmin;
 module.exports.resetDefaultAdminIfEnabled = resetDefaultAdminIfEnabled;
+module.exports.ensureDefaultStudent = ensureDefaultStudent;
 module.exports.getDefaultAdminCheck = getDefaultAdminCheck;
 module.exports.isDefaultAdminReady = isDefaultAdminReady;

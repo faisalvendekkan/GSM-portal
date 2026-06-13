@@ -14,16 +14,7 @@ const emailPasswordRules = [
 router.post(
   "/register",
   authLimiter,
-  [
-    body("name").isLength({ min: 2, max: 80 }).withMessage("Name must be 2 to 80 characters."),
-    body("email").isEmail().withMessage("Use a valid email address.").normalizeEmail(),
-    body("password")
-      .isStrongPassword({ minLength: 8, minLowercase: 1, minUppercase: 1, minNumbers: 1, minSymbols: 1 })
-      .withMessage("Use at least 8 characters with uppercase, lowercase, number, and symbol."),
-    body("confirmPassword").custom((value, { req }) => value === req.body.password).withMessage("Passwords must match.")
-  ],
-  validate,
-  authController.register
+  (req, res) => res.status(403).json({ message: "Public registration is disabled. Please contact an admin." })
 );
 
 router.post("/login", authLimiter, emailPasswordRules, validate, authController.login);

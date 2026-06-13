@@ -8,6 +8,12 @@ function fromRoot(relativePath) {
   return path.resolve(__dirname, "../../", relativePath);
 }
 
+function normalizeEmail(value, fallback) {
+  const raw = String(value || fallback || "").trim().toLowerCase();
+  const match = raw.match(/[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/i);
+  return (match?.[0] || raw).trim().toLowerCase();
+}
+
 const env = {
   nodeEnv: process.env.NODE_ENV || "development",
   port: Number(process.env.PORT || 3000),
@@ -21,8 +27,10 @@ const env = {
   aiProvider: process.env.AI_PROVIDER || "gemini",
   geminiApiKey: process.env.GEMINI_API_KEY || "",
   geminiModel: process.env.GEMINI_MODEL || "gemini-2.5-flash",
-  defaultAdminEmail: (process.env.DEFAULT_ADMIN_EMAIL || "admin@gsmportal.local").trim().toLowerCase(),
+  defaultAdminEmail: normalizeEmail(process.env.DEFAULT_ADMIN_EMAIL, "admin@gsmportal.local"),
   defaultAdminPassword: process.env.DEFAULT_ADMIN_PASSWORD || "Admin@12345!",
+  defaultStudentEmail: normalizeEmail(process.env.DEFAULT_STUDENT_EMAIL, "student@gsmportal.local"),
+  defaultStudentPassword: process.env.DEFAULT_STUDENT_PASSWORD || "Student@12345!",
   resetDefaultAdmin: String(process.env.RESET_DEFAULT_ADMIN || "true").toLowerCase() === "true",
   adminDebugKey: process.env.ADMIN_DEBUG_KEY || "",
   adminResetKey: process.env.ADMIN_RESET_KEY || "",

@@ -68,11 +68,6 @@ export default function Login({ adminMode = false }) {
           <Link className="hover:text-white" to={isAdminLogin ? "/login" : "/admin/login"}>
             {isAdminLogin ? "Student login" : "Admin login"}
           </Link>
-          {!isAdminLogin ? (
-            <Link className="hover:text-white" to="/register">
-              Create account
-            </Link>
-          ) : null}
         </div>
       </Card>
     </div>

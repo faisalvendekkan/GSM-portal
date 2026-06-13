@@ -3,7 +3,6 @@ import DashboardLayout from "./layouts/DashboardLayout.jsx";
 import ProtectedRoute from "./routes/ProtectedRoute.jsx";
 import Landing from "./pages/Landing.jsx";
 import Login from "./pages/Login.jsx";
-import Register from "./pages/Register.jsx";
 import Dashboard from "./pages/Dashboard.jsx";
 import AIAssistant from "./pages/AIAssistant.jsx";
 import Notes from "./pages/Notes.jsx";
@@ -29,7 +28,7 @@ export default function App() {
       <Route path="/" element={<Landing />} />
       <Route path="/login" element={<Login />} />
       <Route path="/admin/login" element={<Login adminMode />} />
-      <Route path="/register" element={<Register />} />
+      <Route path="/register" element={<Navigate to="/login" replace />} />
       <Route path="/error" element={<ErrorPage />} />
 
       <Route element={<ProtectedRoute roles={["student", "admin"]} />}>

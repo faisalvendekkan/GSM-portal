@@ -27,11 +27,6 @@ export default function Landing() {
                   Student Login
                 </Button>
               </Link>
-              <Link to="/register">
-                <Button variant="secondary" className="w-full sm:w-auto">
-                  Create Account
-                </Button>
-              </Link>
               <Link to="/admin/login">
                 <Button variant="ghost" icon={ShieldCheck} className="w-full sm:w-auto">
                   Admin
