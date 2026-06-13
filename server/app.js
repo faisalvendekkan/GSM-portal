@@ -51,14 +51,6 @@ function routeNotFound(res) {
   return res.status(404).json({ message: "Route not found" });
 }
 
-function requireConfiguredKey(req, res, key, headerName, bodyName) {
-  if (!key) return routeNotFound(res);
-  if (getRequestKey(req, headerName, bodyName) !== key) {
-    return res.status(403).json({ message: "Invalid reset key" });
-  }
-  return null;
-}
-
 if (env.nodeEnv !== "production" || env.adminDebugKey) {
   app.get("/api/debug/admin-check", async (req, res, next) => {
     try {
@@ -78,13 +70,17 @@ if (env.nodeEnv !== "production" || env.adminDebugKey) {
 
 app.post("/api/admin-reset", async (req, res, next) => {
   try {
-    const blocked = requireConfiguredKey(req, res, env.adminResetKey, "x-admin-reset-key", "adminResetKey");
-    if (blocked) return blocked;
+    const adminResetKey = process.env.ADMIN_RESET_KEY || "";
+    if (!adminResetKey) return routeNotFound(res);
+    if (String(req.body?.key || "") !== adminResetKey) {
+      return res.status(403).json({ message: "Invalid reset key" });
+    }
 
-    await resetDefaultAdmin();
+    const admin = await resetDefaultAdmin();
     return res.json({
       ok: true,
-      admin: await getDefaultAdminCheck()
+      message: "Admin reset completed",
+      email: admin.email
     });
   } catch (error) {
     return next(error);

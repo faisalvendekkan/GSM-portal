@@ -57,15 +57,20 @@ async function resetDefaultAdmin() {
     );
   } else {
     await query(
-      `INSERT INTO users (name, full_name, email, password_hash, role, status)
-       VALUES (?, ?, ?, ?, 'admin', 'active')`,
-      ["Portal Admin", "Portal Admin", email, passwordHash]
+      `INSERT INTO users (name, full_name, email, password_hash, role, status, created_at, updated_at)
+       VALUES (?, ?, ?, ?, 'admin', 'active', datetime('now'), datetime('now'))`,
+      ["Default Admin", "Default Admin", email, passwordHash]
     );
   }
 
   saveDatabase();
   console.log("Default admin reset completed");
   return findDefaultAdmin();
+}
+
+async function resetDefaultAdminIfEnabled() {
+  if (!env.resetDefaultAdmin) return null;
+  return resetDefaultAdmin();
 }
 
 async function getDefaultAdminCheck() {
@@ -100,9 +105,9 @@ async function ensureDefaultAdmin({ forceReset = false } = {}) {
   if (!existing) {
     const passwordHash = await bcrypt.hash(password, 12);
     await query(
-      `INSERT INTO users (name, full_name, email, password_hash, role, status)
-       VALUES (?, ?, ?, ?, 'admin', 'active')`,
-      ["Portal Admin", "Portal Admin", email, passwordHash]
+      `INSERT INTO users (name, full_name, email, password_hash, role, status, created_at, updated_at)
+       VALUES (?, ?, ?, ?, 'admin', 'active', datetime('now'), datetime('now'))`,
+      ["Default Admin", "Default Admin", email, passwordHash]
     );
     saveDatabase();
     console.log(`Default admin created: ${email}`);
@@ -130,8 +135,6 @@ async function seedDb() {
   } else {
     console.log("Default categories already exist.");
   }
-
-  await ensureDefaultAdmin();
 
   const charging = (await query("SELECT id FROM categories WHERE slug = ? LIMIT 1", ["charging-section"]))[0];
   const battery = (await query("SELECT id FROM categories WHERE slug = ? LIMIT 1", ["battery-issues"]))[0];
@@ -173,6 +176,7 @@ if (require.main === module) {
   const { initializeDatabase } = require("../config/database");
   initializeDatabase()
     .then(seedDb)
+    .then(resetDefaultAdminIfEnabled)
     .then(() => console.log("SQLite seed complete."))
     .catch((error) => {
       console.error(error);
@@ -183,5 +187,6 @@ if (require.main === module) {
 module.exports = seedDb;
 module.exports.ensureDefaultAdmin = ensureDefaultAdmin;
 module.exports.resetDefaultAdmin = resetDefaultAdmin;
+module.exports.resetDefaultAdminIfEnabled = resetDefaultAdminIfEnabled;
 module.exports.getDefaultAdminCheck = getDefaultAdminCheck;
 module.exports.isDefaultAdminReady = isDefaultAdminReady;
