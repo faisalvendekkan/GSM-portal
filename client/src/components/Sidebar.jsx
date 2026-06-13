@@ -2,7 +2,6 @@ import {
   Bot,
   FileText,
   Gauge,
-  GraduationCap,
   Layers3,
   Link as LinkIcon,
   Newspaper,
@@ -36,12 +35,14 @@ export default function Sidebar() {
   return (
     <aside className="fixed left-0 top-0 z-30 hidden h-screen w-72 border-r border-white/10 bg-navy-950/90 p-5 backdrop-blur-xl lg:block">
       <div className="mb-8 flex items-center gap-3">
-        <div className="grid h-11 w-11 place-items-center rounded-lg bg-electric-500 text-white shadow-glow">
-          <GraduationCap size={24} />
-        </div>
+        <img
+          src="/brand/gsm-logo.svg"
+          alt="GSM Student Portal"
+          className="h-11 w-11 rounded-lg shadow-glow ring-1 ring-electric-400/35"
+        />
         <div>
-          <p className="text-sm text-slate-400">GSM Training</p>
-          <h2 className="font-semibold text-white">Repair Portal</h2>
+          <p className="text-sm text-slate-400">GSM Student</p>
+          <h2 className="font-semibold text-white">Portal</h2>
         </div>
       </div>
       <nav className="space-y-1">

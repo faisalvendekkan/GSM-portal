@@ -15,9 +15,16 @@ export default function Navbar() {
   return (
     <header className="sticky top-0 z-20 border-b border-white/10 bg-navy-950/80 px-4 py-3 backdrop-blur-xl sm:px-6 lg:px-8">
       <div className="mx-auto flex max-w-7xl items-center justify-between gap-3">
-        <Link to={user?.role === "admin" ? "/admin" : "/dashboard"} className="min-w-0">
-          <p className="truncate text-sm text-slate-400">Mobile Repair AI</p>
-          <h1 className="truncate text-base font-semibold text-white sm:text-lg">Student Portal</h1>
+        <Link to={user?.role === "admin" ? "/admin" : "/dashboard"} className="flex min-w-0 items-center gap-3">
+          <img
+            src="/brand/gsm-logo.svg"
+            alt="GSM Student Portal"
+            className="h-10 w-10 shrink-0 rounded-lg shadow-glow ring-1 ring-electric-400/35"
+          />
+          <div className="min-w-0">
+            <p className="truncate text-sm text-slate-400">GSM</p>
+            <h1 className="truncate text-base font-semibold text-white sm:text-lg">Student Portal</h1>
+          </div>
         </Link>
         <div className="flex items-center gap-2">
           <Link

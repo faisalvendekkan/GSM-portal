@@ -14,10 +14,17 @@ export default function Landing() {
         <div className="absolute inset-0 bg-gradient-to-r from-navy-950 via-navy-950/[0.82] to-navy-950/[0.35]" />
         <div className="relative mx-auto flex min-h-[92vh] max-w-7xl flex-col justify-center px-5 py-14 sm:px-8">
           <div className="max-w-3xl">
-            <p className="mb-4 inline-flex rounded-lg border border-electric-400/40 bg-electric-500/[0.12] px-3 py-2 text-sm text-cyan-100">
-              Technician training workspace
-            </p>
-            <h1 className="text-4xl font-bold leading-tight sm:text-6xl">Mobile Repair AI Student Portal</h1>
+            <div className="mb-5 flex flex-wrap items-center gap-3">
+              <img
+                src="/brand/gsm-logo.svg"
+                alt="GSM Student Portal"
+                className="h-14 w-14 rounded-lg shadow-glow ring-1 ring-electric-400/35"
+              />
+              <p className="inline-flex rounded-lg border border-electric-400/40 bg-electric-500/[0.12] px-3 py-2 text-sm text-cyan-100">
+                Technician training workspace
+              </p>
+            </div>
+            <h1 className="text-4xl font-bold leading-tight sm:text-6xl">GSM Student Portal</h1>
             <p className="mt-5 max-w-2xl text-base leading-7 text-slate-200 sm:text-lg">
               Learn, save repair knowledge, ask guided diagnostic questions, and manage field notes from one secure portal.
             </p>
