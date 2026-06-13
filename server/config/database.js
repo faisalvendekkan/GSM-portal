@@ -24,10 +24,19 @@ function ensureDataDir() {
 }
 
 function saveDatabase() {
-  if (!db) return;
+  if (!db) {
+    throw new Error("Cannot save SQLite database before initialization.");
+  }
   ensureDataDir();
-  const data = db.export();
-  fs.writeFileSync(env.sqliteDbPath, Buffer.from(data));
+  const data = Buffer.from(db.export());
+  const fd = fs.openSync(env.sqliteDbPath, "w");
+  try {
+    fs.writeFileSync(fd, data);
+    fs.fsyncSync(fd);
+  } finally {
+    fs.closeSync(fd);
+  }
+  return env.sqliteDbPath;
 }
 
 function openExistingDatabase(fileBuffer) {

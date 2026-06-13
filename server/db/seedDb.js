@@ -135,12 +135,20 @@ async function resetDefaultAdminIfEnabled() {
 async function ensureDefaultStudent() {
   const { email, password } = getDefaultStudentCredentials();
   const existing = await findUserByNormalizedEmail(email);
+  const passwordHash = await bcrypt.hash(password, 12);
+
   if (existing) {
-    console.log(`Default student already exists: ${email}`);
-    return existing;
+    await query(
+      `UPDATE users
+       SET email = ?, password_hash = ?, role = 'student', status = 'active', updated_at = datetime('now')
+       WHERE id = ?`,
+      [email, passwordHash, existing.id]
+    );
+    saveDatabase();
+    console.log(`Default student updated: ${email}`);
+    return findUserByNormalizedEmail(email);
   }
 
-  const passwordHash = await bcrypt.hash(password, 12);
   await query(
     `INSERT INTO users (name, full_name, email, password_hash, role, status, created_at, updated_at)
      VALUES (?, ?, ?, ?, 'student', 'active', datetime('now'), datetime('now'))`,
@@ -264,7 +272,8 @@ if (require.main === module) {
   const { initializeDatabase } = require("../config/database");
   initializeDatabase()
     .then(seedDb)
-    .then(resetDefaultAdminIfEnabled)
+    .then(() => setupDefaultAdmin())
+    .then(() => setupDefaultStudent())
     .then(() => console.log("SQLite seed complete."))
     .catch((error) => {
       console.error(error);
