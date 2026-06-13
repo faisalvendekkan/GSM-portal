@@ -17,33 +17,95 @@ const categories = [
   ["Safety Guidelines", "safety-guidelines", "Battery, ESD, heat, fumes, and data safety practices."]
 ];
 
-async function ensureDefaultAdmin({ forceReset = false } = {}) {
-  const defaultEmail = env.defaultAdminEmail || "admin@gsmportal.local";
-  const defaultPassword = env.defaultAdminPassword || "Admin@12345!";
-  const matchingAdmins = await query("SELECT id FROM users WHERE lower(email) = ? LIMIT 1", [defaultEmail]);
+function getDefaultAdminCredentials() {
+  return {
+    email: String(env.defaultAdminEmail || "admin@gsmportal.local").trim().toLowerCase(),
+    password: env.defaultAdminPassword || "Admin@12345!"
+  };
+}
 
-  if (matchingAdmins.length && (forceReset || env.resetDefaultAdmin)) {
-    const passwordHash = await bcrypt.hash(defaultPassword, 12);
+function publicAdminCheck(row, passwordMatchesDefault = false) {
+  return {
+    exists: Boolean(row),
+    email: row?.email || null,
+    role: row?.role || null,
+    status: row?.status || null,
+    passwordMatchesDefault
+  };
+}
+
+async function findDefaultAdmin() {
+  const { email } = getDefaultAdminCredentials();
+  const rows = await query(
+    "SELECT id, email, password_hash, role, status FROM users WHERE lower(trim(email)) = ? LIMIT 1",
+    [email]
+  );
+  return rows[0] || null;
+}
+
+async function resetDefaultAdmin() {
+  const { email, password } = getDefaultAdminCredentials();
+  const existing = await findDefaultAdmin();
+  const passwordHash = await bcrypt.hash(password, 12);
+
+  if (existing) {
     await query(
       `UPDATE users
        SET email = ?, password_hash = ?, role = 'admin', status = 'active', updated_at = datetime('now')
        WHERE id = ?`,
-      [defaultEmail, passwordHash, matchingAdmins[0].id]
+      [email, passwordHash, existing.id]
     );
-    saveDatabase();
-    console.log(`Default admin updated and activated: ${defaultEmail}`);
-    return;
-  }
-
-  if (!matchingAdmins.length) {
-    const passwordHash = await bcrypt.hash(defaultPassword, 12);
+  } else {
     await query(
       `INSERT INTO users (name, full_name, email, password_hash, role, status)
        VALUES (?, ?, ?, ?, 'admin', 'active')`,
-      ["Portal Admin", "Portal Admin", defaultEmail, passwordHash]
+      ["Portal Admin", "Portal Admin", email, passwordHash]
+    );
+  }
+
+  saveDatabase();
+  console.log("Default admin reset completed");
+  return findDefaultAdmin();
+}
+
+async function getDefaultAdminCheck() {
+  const { password } = getDefaultAdminCredentials();
+  const admin = await findDefaultAdmin();
+  let passwordMatchesDefault = false;
+
+  if (admin?.password_hash) {
+    try {
+      passwordMatchesDefault = await bcrypt.compare(password, admin.password_hash);
+    } catch (error) {
+      passwordMatchesDefault = false;
+    }
+  }
+
+  return {
+    configuredEmail: getDefaultAdminCredentials().email,
+    resetDefaultAdmin: env.resetDefaultAdmin,
+    ...publicAdminCheck(admin, passwordMatchesDefault)
+  };
+}
+
+async function ensureDefaultAdmin({ forceReset = false } = {}) {
+  const { email, password } = getDefaultAdminCredentials();
+  const existing = await findDefaultAdmin();
+
+  if (forceReset || env.resetDefaultAdmin) {
+    await resetDefaultAdmin();
+    return;
+  }
+
+  if (!existing) {
+    const passwordHash = await bcrypt.hash(password, 12);
+    await query(
+      `INSERT INTO users (name, full_name, email, password_hash, role, status)
+       VALUES (?, ?, ?, ?, 'admin', 'active')`,
+      ["Portal Admin", "Portal Admin", email, passwordHash]
     );
     saveDatabase();
-    console.log(`Default admin created: ${defaultEmail}`);
+    console.log(`Default admin created: ${email}`);
   } else {
     console.log("Default admin already exists.");
   }
@@ -120,4 +182,6 @@ if (require.main === module) {
 
 module.exports = seedDb;
 module.exports.ensureDefaultAdmin = ensureDefaultAdmin;
+module.exports.resetDefaultAdmin = resetDefaultAdmin;
+module.exports.getDefaultAdminCheck = getDefaultAdminCheck;
 module.exports.isDefaultAdminReady = isDefaultAdminReady;

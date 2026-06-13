@@ -6,7 +6,7 @@ const path = require("path");
 const env = require("./config/env");
 const { areTablesReady } = require("./config/database");
 const initDb = require("./db/initDb");
-const { isDefaultAdminReady } = require("./db/seedDb");
+const { getDefaultAdminCheck, isDefaultAdminReady, resetDefaultAdmin } = require("./db/seedDb");
 const categoryModel = require("./models/categoryModel");
 const authRoutes = require("./routes/authRoutes");
 const dashboardRoutes = require("./routes/dashboardRoutes");
@@ -40,6 +40,54 @@ app.get("/api/health", async (req, res, next) => {
     });
   } catch (error) {
     next(error);
+  }
+});
+
+function getRequestKey(req, headerName, bodyName) {
+  return String(req.get(headerName) || req.body?.[bodyName] || req.query?.key || "");
+}
+
+function routeNotFound(res) {
+  return res.status(404).json({ message: "Route not found" });
+}
+
+function requireConfiguredKey(req, res, key, headerName, bodyName) {
+  if (!key) return routeNotFound(res);
+  if (getRequestKey(req, headerName, bodyName) !== key) {
+    return res.status(403).json({ message: "Invalid reset key" });
+  }
+  return null;
+}
+
+if (env.nodeEnv !== "production" || env.adminDebugKey) {
+  app.get("/api/debug/admin-check", async (req, res, next) => {
+    try {
+      if (env.adminDebugKey && getRequestKey(req, "x-admin-debug-key", "adminDebugKey") !== env.adminDebugKey) {
+        return res.status(403).json({ message: "Invalid debug key" });
+      }
+
+      return res.json({
+        ok: true,
+        admin: await getDefaultAdminCheck()
+      });
+    } catch (error) {
+      return next(error);
+    }
+  });
+}
+
+app.post("/api/admin-reset", async (req, res, next) => {
+  try {
+    const blocked = requireConfiguredKey(req, res, env.adminResetKey, "x-admin-reset-key", "adminResetKey");
+    if (blocked) return blocked;
+
+    await resetDefaultAdmin();
+    return res.json({
+      ok: true,
+      admin: await getDefaultAdminCheck()
+    });
+  } catch (error) {
+    return next(error);
   }
 });
 
