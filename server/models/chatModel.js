@@ -1,12 +1,10 @@
 const { query } = require("../config/db");
 
-async function createChat(userId, { question, answer, provider = "gemini" }) {
-  const result = await query("INSERT INTO ai_chats (user_id, question, answer, provider) VALUES (?, ?, ?, ?)", [
-    userId,
-    question,
-    answer,
-    provider
-  ]);
+async function createChat(userId, { question, answer, provider = "gemini", imageAttached = false }) {
+  const result = await query(
+    "INSERT INTO ai_chats (user_id, question, answer, provider, image_attached) VALUES (?, ?, ?, ?, ?)",
+    [userId, question, answer, provider, imageAttached ? 1 : 0]
+  );
   const rows = await query("SELECT * FROM ai_chats WHERE id = ? LIMIT 1", [result.insertId]);
   return rows[0];
 }

@@ -268,6 +268,19 @@ Core:
 - `GET /api/links`
 - `GET /api/articles`
 - `GET /api/ai/history`
+- `POST /api/ai/chat`
+
+AI chat accepts JSON text-only requests:
+
+```json
+{
+  "question": "Phone charging shows but percentage is not increasing"
+}
+```
+
+It also accepts `multipart/form-data` with `message` and an optional `image` file. Supported image types are JPEG, PNG, and WebP up to 8 MB. Images are kept in memory only and sent directly to Gemini as inline base64 content; the SQLite chat history stores only the question, answer, provider, timestamp, and `image_attached` flag.
+
+The AI Assistant page supports camera capture, image upload, image removal, and browser speech-to-text. Browser camera access requires HTTPS in production, which is satisfied by `https://gsm.abilix.in`.
 
 Admin:
 
@@ -353,7 +366,11 @@ Do not use `gsm-api.abilix.in` or localhost in production.
 If `GEMINI_API_KEY` is missing, AI routes return:
 
 ```text
-AI service is not configured yet. Please add GEMINI_API_KEY in environment variables.
+English:
+AI service is not configured yet. Please add GEMINI_API_KEY in environment variables, then try again.
+
+Malayalam:
+AI service is not configured yet. Please add GEMINI_API_KEY, then try again.
 ```
 
 ## Final Deployment Checklist

@@ -27,7 +27,7 @@ const app = express();
 const port = env.port;
 
 configureSecurity(app);
-app.use(express.json({ limit: "1mb" }));
+app.use(express.json({ limit: "2mb" }));
 app.use(express.urlencoded({ extended: true, limit: "1mb" }));
 app.use(cookieParser());
 app.use(sanitizeRequest);

@@ -154,6 +154,7 @@ function ensureColumnRepairs() {
   ensureColumn("saved_links", "created_at", "TEXT");
   ensureColumn("saved_links", "updated_at", "TEXT");
   ensureColumn("ai_chats", "provider", "TEXT");
+  ensureColumn("ai_chats", "image_attached", "INTEGER NOT NULL DEFAULT 0");
   ensureColumn("ai_chats", "created_at", "TEXT");
   ensureColumn("refresh_tokens", "revoked_at", "TEXT");
   ensureColumn("refresh_tokens", "created_at", "TEXT");
